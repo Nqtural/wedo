@@ -1,7 +1,14 @@
+use std::sync::Arc;
+
 use axum::Router;
 
-pub mod lists;
+use crate::storage::Storage;
 
-pub fn routes() -> Router<()> {
-	Router::new().nest("/lists", lists::lists())
+pub mod lists;
+pub mod tasks;
+
+pub fn routes() -> Router<Arc<dyn Storage>> {
+	Router::new()
+		.nest("/lists", lists::lists())
+		.nest("/tasks", tasks::tasks())
 }
