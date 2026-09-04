@@ -15,6 +15,11 @@ const router = createRouter({
 			name: "List",
 			component: List,
 		},
+
+		{
+			path: '/:pathMatch(.*)*',
+			redirect: '/links',
+		},
 	],
 });
 
