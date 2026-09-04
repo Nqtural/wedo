@@ -43,7 +43,7 @@ onMounted(async () => {
 
 	try {
 		const response = await fetch(
-			`http://localhost:3000/tasks/${props.taskId}`,
+			`${import.meta.env.VITE_API_URL}/tasks/${props.taskId}`,
 		);
 
 		if (!response.ok) {
@@ -72,7 +72,7 @@ async function createTask() {
 	if (!task.value) return;
 
 	const response = await fetch(
-		`http://localhost:3000/lists/${props.listId}/tasks`,
+		`${import.meta.env.VITE_API_URL}/lists/${props.listId}/tasks`,
 		{
 			method: "POST",
 			headers: {
@@ -97,7 +97,7 @@ async function updateTask() {
 	if (!task.value) return;
 
 	const response = await fetch(
-		`http://localhost:3000/tasks/${props.taskId}`,
+		`${import.meta.env.VITE_API_URL}/tasks/${props.taskId}`,
 		{
 			method: "PUT",
 			headers: {
@@ -120,7 +120,7 @@ async function updateTask() {
 
 async function deleteTask() {
 	const response = await fetch(
-		`http://localhost:3000/tasks/${props.taskId}`,
+		`${import.meta.env.VITE_API_URL}/tasks/${props.taskId}`,
 		{
 			method: "DELETE",
 		},

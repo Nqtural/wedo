@@ -13,7 +13,7 @@ const selectedListId = ref<string | null>(null);
 const creatingList = ref(false);
 
 async function getLists() {
-		const response = await fetch("http://localhost:3000/lists");
+		const response = await fetch(`${import.meta.env.VITE_API_URL}/lists`);
 
 	if (!response.ok) {
 		throw new Error(`HTTP error: ${response.status}`);
@@ -28,7 +28,7 @@ onMounted(async () => {
 
 async function createList() {
 	const response = await fetch(
-		"http://localhost:3000/lists",
+		`${import.meta.env.VITE_API_URL}/lists`,
 		{
 			method: "POST",
 			headers: {

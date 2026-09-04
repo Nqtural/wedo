@@ -20,7 +20,7 @@ const selectedTaskId = ref<string | null>(null);
 const creatingTask = ref(false);
 
 async function getTasks() {
-	const response = await fetch(`http://localhost:3000/lists/${listId}/tasks`);
+	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists/${listId}/tasks`);
 
 	if (!response.ok) {
 		throw new Error(`HTTP error: ${response.status}`);
@@ -30,7 +30,7 @@ async function getTasks() {
 }
 
 onMounted(async () => {
-	const response = await fetch(`http://localhost:3000/lists/${listId}`);
+	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists/${listId}`);
 
 	if (!response.ok) {
 		throw new Error(`HTTP error: ${response.status}`);
@@ -43,7 +43,7 @@ onMounted(async () => {
 
 async function toggleFinished(task: Task) {
 	const response = await fetch(
-		`http://localhost:3000/tasks/${task.id}/completed`,
+		`${import.meta.env.VITE_API_URL}/tasks/${task.id}/completed`,
 		{
 			method: "PUT",
 			body: JSON.stringify({ completed: !task.completed }),

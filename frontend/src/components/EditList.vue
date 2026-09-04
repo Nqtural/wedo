@@ -34,7 +34,7 @@ onMounted(async () => {
 
 	try {
 		const response = await fetch(
-			`http://localhost:3000/lists/${props.listId}`,
+			`${import.meta.env.VITE_API_URL}/lists/${props.listId}`,
 		);
 
 		if (!response.ok) {
@@ -63,7 +63,7 @@ async function createList() {
 	if (!list.value) return;
 
 	const response = await fetch(
-		`http://localhost:3000/lists`,
+		`${import.meta.env.VITE_API_URL}/lists`,
 		{
 			method: "POST",
 			headers: {
@@ -86,7 +86,7 @@ async function updateList() {
 	if (!list.value) return;
 
 	const response = await fetch(
-		`http://localhost:3000/lists/${props.listId}`,
+		`${import.meta.env.VITE_API_URL}/lists/${props.listId}`,
 		{
 			method: "PUT",
 			headers: {
@@ -107,7 +107,7 @@ async function updateList() {
 
 async function deleteList() {
 	const response = await fetch(
-		`http://localhost:3000/lists/${props.listId}`,
+		`${import.meta.env.VITE_API_URL}/lists/${props.listId}`,
 		{
 			method: "DELETE",
 		},
