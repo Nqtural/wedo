@@ -1759,7 +1759,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wedo"
+name = "wedo-backend"
 version = "0.1.0"
 dependencies = [
  "async-trait",
