@@ -113,6 +113,26 @@ impl Storage for SqliteStorage {
 			.collect::<Result<Vec<_>, StorageError>>()?)
 	}
 
+	async fn get_list(&self, list_id: Uuid) -> Result<ListOverview, StorageError> {
+		let list_id_string = list_id.to_string();
+
+		let list = sqlx::query!(
+			r#"
+			SELECT id, name FROM lists
+			WHERE id = ?
+			"#,
+			list_id_string,
+		)
+		.fetch_one(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		Ok(ListOverview {
+			id: Uuid::parse_str(&list.id)?,
+			name: list.name,
+		})
+	}
+
 	async fn update_list(&self, list_id: Uuid, state: ListState) -> Result<List, StorageError> {
 		let list_id_string = list_id.to_string();
 

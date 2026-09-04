@@ -32,6 +32,16 @@ pub async fn get_overview(State(storage): State<Arc<dyn Storage>>) -> impl IntoR
 	}
 }
 
+pub async fn get(
+	State(storage): State<Arc<dyn Storage>>,
+	Path(list_id): Path<Uuid>,
+) -> impl IntoResponse {
+	match storage.get_list(list_id).await {
+		Ok(list) => (StatusCode::OK, Json(list)).into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
 pub async fn rename(
 	State(storage): State<Arc<dyn Storage>>,
 	Path(list_id): Path<Uuid>,

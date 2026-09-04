@@ -28,6 +28,7 @@ pub trait Storage: Send + Sync + 'static {
 	// lists
 	async fn create_list(&self, state: ListState) -> Result<List, StorageError>;
 	async fn get_list_overview(&self) -> Result<Vec<ListOverview>, StorageError>;
+	async fn get_list(&self, list_id: Uuid) -> Result<ListOverview, StorageError>;
 	async fn update_list(&self, list_id: Uuid, state: ListState) -> Result<List, StorageError>;
 	async fn delete_list(&self, list_id: Uuid) -> Result<(), StorageError>;
 
