@@ -99,12 +99,11 @@ function closeTask() {
 					<div class="task" :class="{ completed: task.completed }" @click="selectedTaskId = task.id">
 						{{ task.name }}
 
-						<input
-							type="checkbox"
-							:checked="task.completed"
-							@click.stop
-							@change="toggleCompleted(task)"
-						/>
+						<div class="checkbox-wrapper" @click.stop @click="toggleCompleted(task)">
+							<div class="checkbox" :class="{ completed: task.completed }">
+								<span>✓</span>
+							</div>
+						</div>
 					</div>
 				</li>
 			</TransitionGroup>
@@ -228,6 +227,53 @@ li {
 	color: black;
 	border-radius: 6px;
 	transition: background 0.1s;
+
+	& .checkbox-wrapper {
+		position: absolute;
+		height: 100%;
+		aspect-ratio: 1/1;
+		right: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		&:hover {
+			cursor: pointer;
+		}
+
+		.checkbox {
+			height: 75%;
+			aspect-ratio: 1/1;
+			box-sizing: border-box;
+			border: var(--border-width) solid var(--color-surface-2);
+			border-radius: var(--radius-sm);
+			background: var(--color-surface-1);
+			transition: background-color var(--transition-fast), border-color var(--transition-fast);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+
+			& > span {
+				height: fit-content;
+				width: fit-content;
+				user-select: none;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				opacity: 0;
+				transition: opacity var(--transition-fast);
+			}
+
+			&.completed {
+				border-color: var(--color-success);
+				background-color: color-mix(in srgb, var(--color-success) 70%, black);
+
+				& > span {
+					opacity: 1;
+				}
+			}
+		}
+	}
 }
 
 .completed {
@@ -235,20 +281,6 @@ li {
 	text-decoration: line-through;
 }
 
-.task > input[type="checkbox"] {
-	margin: 0px;
-	position: absolute;
-	--margin: calc(var(--li-height) / 5);
-	right: var(--margin);
-	top: var(--margin);
-	height: calc(var(--margin) * 3);
-	width: calc(var(--margin) * 3);
-	opacity: 0;
-	overflow: hidden;
-	pointer-events: none;
-	border-radius: 6px;
-	transition: opacity 0.1s;
-}
 
 #new-list-btn {
 	height: 25px;
