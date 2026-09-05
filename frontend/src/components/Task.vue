@@ -146,25 +146,101 @@ async function deleteTask() {
 			</p>
 
 			<form v-else-if="task" @submit.prevent="saveTask">
-				<label>
-					Name
-					<input v-model="task.state.name" type="text" />
-				</label>
+				<label>Name</label>
+				<input v-model="task.state.name" type="text" />
 
-				<label>
-					Description
-					<textarea v-model="task.state.description"></textarea>
-				</label>
+				<label>Description</label>
+				<textarea v-model="task.state.description"></textarea>
 
 				<label>
 					<input v-model="task.state.completed" type="checkbox" />
 					Completed
 				</label>
 
-				<button v-if="!create" type="button" @click="deleteTask">Delete</button>
-
-				<button type="submit">Save</button>
+				<div class="btn-container">
+					<button v-if="!create" type="button" @click="deleteTask">Delete</button>
+					<button type="submit">Save</button>
+				</div>
 			</form>
 		</div>
 	</div>
 </template>
+
+<style scoped>
+.overlay {
+	position: absolute;
+	width: 100vw;
+	height: 100vh;
+	background: #000000bb;
+	top: 0px;
+	left: 0px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: backdrop-filter 0.3s;
+	backdrop-filter: blur(5px);
+	-webkit-backdrop-filter: blur(5px);
+}
+
+.overlay-enter-active,
+.overlay-leave-active {
+	transition: opacity 0.3s;
+}
+
+.overlay-enter-from,
+.overlay-leave-to {
+	opacity: 0;
+}
+
+.overlay-enter-to,
+.overlay-leave-from {
+	opacity: 1;
+}
+
+.task {
+	width: 30em;
+	background: dimgray;
+	border-radius: 6px;
+	position: relative;
+	padding: 20px;
+}
+
+.task > button {
+	position: absolute;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	right: 5px;
+	top: 5px;
+}
+
+form {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	height: 100%;
+}
+
+label {
+	display: block;
+}
+
+input[type="text"], textarea {
+	width: 100%;
+	height: 25px;
+	display: block;
+}
+
+.btn-container {
+	margin-top: auto;
+	display: flex;
+	justify-content: end;
+	gap: 10px;
+}
+
+button {
+	height: 30px;
+	width: 30px;
+	border-radius: 50%;
+}
+</style>
