@@ -17,8 +17,8 @@ const router = createRouter({
 		},
 
 		{
-			path: '/:pathMatch(.*)*',
-			redirect: '/links',
+			path: "/:pathMatch(.*)*",
+			redirect: "/links",
 		},
 	],
 });

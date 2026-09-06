@@ -40,9 +40,7 @@ const emit = defineEmits<{
 						Delete
 					</Button>
 
-					<Button type="submit" variant="success">
-						Save
-					</Button>
+					<Button type="submit" variant="success">Save</Button>
 				</div>
 			</form>
 		</div>

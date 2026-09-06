@@ -1,13 +1,13 @@
 <script setup lang="ts">
 type Props = {
-	variant?: "primary" | "success" | "danger",
-	type?: "button" | "submit" | "reset",
-	to?: string | Record<string, unknown>,
-}
+	variant?: "primary" | "success" | "danger";
+	type?: "button" | "submit" | "reset";
+	to?: string | Record<string, unknown>;
+};
 
 const props = withDefaults(defineProps<Props>(), {
 	type: "button",
-})
+});
 </script>
 
 <template>
@@ -19,11 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
 		<slot />
 	</RouterLink>
 
-	<button
-		v-else
-		:type="type"
-		:class="['button', `button--${variant}`]"
-	>
+	<button v-else :type="type" :class="['button', `button--${variant}`]">
 		<slot />
 	</button>
 </template>
@@ -33,11 +29,11 @@ const props = withDefaults(defineProps<Props>(), {
 	--button-color: var(--color-primary);
 }
 
-.button--success{
+.button--success {
 	--button-color: var(--color-success);
 }
 
-.button--danger{
+.button--danger {
 	--button-color: var(--color-danger);
 }
 
@@ -56,7 +52,9 @@ const props = withDefaults(defineProps<Props>(), {
 	background: var(--color-surface-2);
 	box-sizing: border-box;
 	border: 2px solid color-mix(in srgb, var(--button-color) 70%, black);
-	transition: background-color var(--transition-fast), border-color var(--transition-fast);
+	transition:
+		background-color var(--transition-fast),
+		border-color var(--transition-fast);
 
 	&:hover {
 		border-color: var(--button-color);
