@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 
+import EditModal from "./EditModal.vue";
+
 interface List {
 	id: string;
 	name: string;
@@ -122,103 +124,15 @@ async function deleteList() {
 </script>
 
 <template>
-	<div class="overlay" @click="emit('close')">
-		<div class="list" @click.stop>
-			<button @click="emit('close')">Close</button>
-
-			<p v-if="loading">Loading...</p>
-
-			<p v-else-if="error">
-				{{ error }}
-			</p>
-
-			<form v-else-if="list" @submit.prevent="saveList">
-				<label>Name:</label>
-				<input v-model="list.name" type="text" />
-
-				<div class="btn-container">
-					<button v-if="!create" type="button" @click="deleteList">Delete</button>
-					<button type="submit">Save</button>
-				</div>
-			</form>
-		</div>
-	</div>
+	<EditModal
+		:create="create"
+		:loading="loading"
+		:error="error"
+		@close="emit('close')"
+		@save="saveList"
+		@delete="deleteList"
+	>
+		<label>Name</label>
+		<input v-if="list" v-model="list.name" type="text" />
+	</EditModal>
 </template>
-
-<style scoped>
-.overlay {
-	position: absolute;
-	width: 100vw;
-	height: 100vh;
-	background: #000000bb;
-	top: 0px;
-	left: 0px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	transition: backdrop-filter 0.3s;
-	backdrop-filter: blur(5px);
-	-webkit-backdrop-filter: blur(5px);
-}
-
-.overlay-enter-active,
-.overlay-leave-active {
-	transition: opacity 0.3s;
-}
-
-.overlay-enter-from,
-.overlay-leave-to {
-	opacity: 0;
-}
-
-.overlay-enter-to,
-.overlay-leave-from {
-	opacity: 1;
-}
-
-.list {
-	width: 30em;
-	background: dimgray;
-	border-radius: 6px;
-	position: relative;
-	padding: 20px;
-}
-
-.list > button {
-	position: absolute;
-	width: 30px;
-	height: 30px;
-	border-radius: 50%;
-	right: 5px;
-	top: 5px;
-}
-
-form {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	height: 100%;
-}
-
-label {
-	display: block;
-}
-
-input[type="text"], textarea {
-	width: 100%;
-	height: 25px;
-	display: block;
-}
-
-.btn-container {
-	margin-top: auto;
-	display: flex;
-	justify-content: end;
-	gap: 10px;
-}
-
-button {
-	height: 32px;
-	width: 56px;
-}
-</style>

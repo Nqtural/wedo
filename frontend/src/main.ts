@@ -3,6 +3,7 @@ import App from "./App.vue";
 import router from "./router";
 
 import "@/assets/theme.css";
+import "@/assets/transitions/overlay.css";
 
 const app = createApp(App);
 
