@@ -20,9 +20,9 @@ const emit = defineEmits<{
 const list = ref<List | null>(
 	props.create
 		? {
-			id: "",
-			name: "",
-		}
+				id: "",
+				name: "",
+			}
 		: null,
 );
 const loading = ref(true);
@@ -64,18 +64,15 @@ async function saveList() {
 async function createList() {
 	if (!list.value) return;
 
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/lists`,
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				name: list.value.name,
-			}),
+	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
 		},
-	);
+		body: JSON.stringify({
+			name: list.value.name,
+		}),
+	});
 
 	if (!response.ok) {
 		throw new Error(`HTTP error: ${response.status}`);

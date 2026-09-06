@@ -5,23 +5,9 @@
   "author": "Type Bank Co., Morisawa Inc.",
   "website": "https://github.com/googlefonts/morisawa-biz-ud-gothic",
   "category": "Sans Serif",
-  "tags": [
-    "sans-serif",
-    "google"
-  ],
-  "languages": [
-    "el",
-    "en",
-    "es",
-    "ja",
-    "ru"
-  ],
-  "styles": [
-    "Bold",
-    "Regular"
-  ],
-  "formats": [
-    "ttf"
-  ],
+  "tags": ["sans-serif", "google"],
+  "languages": ["el", "en", "es", "ja", "ru"],
+  "styles": ["Bold", "Regular"],
+  "formats": ["ttf"],
   "license": "SIL Open Font License 1.1"
 }

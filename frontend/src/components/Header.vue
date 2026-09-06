@@ -1,7 +1,7 @@
 <template>
-<header>
-	<h1>WeDo</h1>
-</header>
+	<header>
+		<h1>WeDo</h1>
+	</header>
 </template>
 
 <style scoped>

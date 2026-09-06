@@ -1,7 +1,7 @@
 <template>
-<li>
-	<slot />
-</li>
+	<li>
+		<slot />
+	</li>
 </template>
 
 <style scoped>
@@ -16,7 +16,9 @@ li {
 	position: relative;
 	width: 100%;
 	box-sizing: border-box;
-	transition: border-color var(--transition-fast), filter var(--transition-slow);
+	transition:
+		border-color var(--transition-fast),
+		filter var(--transition-slow);
 	filter: var(--shadow-sm);
 
 	&:hover {

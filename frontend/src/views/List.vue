@@ -26,7 +26,9 @@ const selectedTaskId = ref<string | null>(null);
 const creatingTask = ref(false);
 
 async function getTasks() {
-	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists/${listId}/tasks`);
+	const response = await fetch(
+		`${import.meta.env.VITE_API_URL}/lists/${listId}/tasks`,
+	);
 
 	if (!response.ok) {
 		throw new Error(`HTTP error: ${response.status}`);
@@ -36,7 +38,9 @@ async function getTasks() {
 }
 
 onMounted(async () => {
-	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists/${listId}`);
+	const response = await fetch(
+		`${import.meta.env.VITE_API_URL}/lists/${listId}`,
+	);
 
 	if (!response.ok) {
 		throw new Error(`HTTP error: ${response.status}`);
@@ -44,7 +48,7 @@ onMounted(async () => {
 
 	listName.value = (await response.json()).name;
 
- 	getTasks();
+	getTasks();
 });
 
 async function toggleCompleted(task: Task) {
@@ -122,9 +126,7 @@ function closeTask() {
 		</ListItem>
 
 		<template #actions>
-			<Button variant="success" @click="newTask">
-				Add
-			</Button>
+			<Button variant="success" @click="newTask">Add</Button>
 		</template>
 	</ListPage>
 

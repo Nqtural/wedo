@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineProps<{
 	modelValue: boolean;
-}>()
+}>();
 
 const emit = defineEmits<{
 	"update:modelValue": [value: boolean];
@@ -9,7 +9,11 @@ const emit = defineEmits<{
 </script>
 
 <template>
-	<div class="checkbox" :class="{ toggled: modelValue }" @click="emit('update:modelValue', !modelValue)">
+	<div
+		class="checkbox"
+		:class="{ toggled: modelValue }"
+		@click="emit('update:modelValue', !modelValue)"
+	>
 		<span>✓</span>
 	</div>
 </template>
@@ -22,7 +26,9 @@ const emit = defineEmits<{
 	border: var(--border-width) solid var(--color-surface-2);
 	border-radius: var(--radius-sm);
 	background: var(--color-surface-1);
-	transition: background-color var(--transition-fast), border-color var(--transition-fast);
+	transition:
+		background-color var(--transition-fast),
+		border-color var(--transition-fast);
 	display: flex;
 	align-items: center;
 	justify-content: center;

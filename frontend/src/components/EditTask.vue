@@ -153,7 +153,11 @@ async function deleteTask() {
 		<textarea v-if="task" v-model="task.state.description"></textarea>
 
 		<label>
-			<Checkbox v-if="task" class="checkbox" v-model="task.state.completed" />
+			<Checkbox
+				v-if="task"
+				class="checkbox"
+				v-model="task.state.completed"
+			/>
 			Completed
 		</label>
 	</EditModal>

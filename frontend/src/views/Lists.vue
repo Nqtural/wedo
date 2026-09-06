@@ -18,7 +18,7 @@ const selectedListId = ref<string | null>(null);
 const creatingList = ref(false);
 
 async function getLists() {
-		const response = await fetch(`${import.meta.env.VITE_API_URL}/lists`);
+	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists`);
 
 	if (!response.ok) {
 		throw new Error(`HTTP error: ${response.status}`);
@@ -32,18 +32,15 @@ onMounted(async () => {
 });
 
 async function createList() {
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/lists`,
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				name: "name",
-			}),
-		}
-	)
+	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			name: "name",
+		}),
+	});
 
 	getLists();
 }
@@ -68,15 +65,21 @@ function closeList() {
 			</router-link>
 			<ListItemActions>
 				<template #hiding>
-					<Button type="button" variant="primary" @click.stop="selectedListId = listItem.id">Edit</Button>
+					<Button
+						type="button"
+						variant="primary"
+						@click.stop="selectedListId = listItem.id"
+						>Edit</Button
+					>
 				</template>
 			</ListItemActions>
 		</ListItem>
 
 		<template #actions>
-			<Button type="button" variant="success" @click="newList">Add list</Button>
+			<Button type="button" variant="success" @click="newList"
+				>Add list</Button
+			>
 		</template>
-
 	</ListPage>
 
 	<Transition name="overlay">
