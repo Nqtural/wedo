@@ -48,11 +48,11 @@ const props = withDefaults(defineProps<Props>(), {
 	color: var(--color-text);
 	text-decoration: none;
 	border: 2px solid black;
-	width: 30px;
-	height: 30px;
+	height: 35px;
+	asepct-ratio: 1/1;
 	cursor: pointer;
 	pointer-events: auto;
-	border-radius: 50%;
+	border-radius: var(--radius-sm);
 	background: var(--color-surface-2);
 	box-sizing: border-box;
 	border: 2px solid color-mix(in srgb, var(--button-color) 70%, black);

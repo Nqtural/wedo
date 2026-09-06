@@ -16,7 +16,7 @@ const emit = defineEmits<{
 
 <style scoped>
 .checkbox {
-	height: 75%;
+	height: 35px;
 	aspect-ratio: 1/1;
 	box-sizing: border-box;
 	border: var(--border-width) solid var(--color-surface-2);
