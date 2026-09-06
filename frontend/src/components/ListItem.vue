@@ -11,6 +11,7 @@ li {
 	border-radius: var(--radius-sm);
 	--li-height: 50px;
 	height: var(--li-height);
+	flex-shrink: 0;
 	display: flex;
 	position: relative;
 	width: 100%;
