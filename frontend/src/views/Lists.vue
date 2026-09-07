@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { apiFetch } from "@/api";
 
 import EditList from "../components/EditList.vue";
 import Header from "../components/Header.vue";
@@ -18,13 +19,7 @@ const selectedListId = ref<string | null>(null);
 const creatingList = ref(false);
 
 async function getLists() {
-	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists`);
-
-	if (!response.ok) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
-
-	list.value = await response.json();
+	list.value = await apiFetch<ListItem[]>("/lists");
 }
 
 onMounted(async () => {
@@ -32,28 +27,25 @@ onMounted(async () => {
 });
 
 async function createList() {
-	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists`, {
+	await apiFetch("/lists", {
 		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
 		body: JSON.stringify({
 			name: "name",
 		}),
 	});
 
-	getLists();
+	await getLists();
 }
 
 function newList() {
 	creatingList.value = true;
 }
 
-function closeList() {
+async function closeList() {
 	selectedListId.value = null;
 	creatingList.value = false;
 
-	getLists();
+	await getLists();
 }
 </script>
 

@@ -454,7 +454,15 @@ impl Storage for SqliteStorage {
 		)
 		.execute(&self.pool)
 		.await
-		.map_err(StorageError::Database)?;
+		.map_err(|err| {
+			if let sqlx::Error::Database(db_err) = &err {
+				if db_err.is_unique_violation() {
+					return StorageError::Conflict;
+				}
+			}
+
+			StorageError::Database(err)
+		})?;
 
 		Ok(())
 	}
@@ -510,9 +518,10 @@ impl Storage for SqliteStorage {
 			"#,
 			credentials.username,
 		)
-		.fetch_one(&self.pool)
+		.fetch_optional(&self.pool)
 		.await
-		.map_err(StorageError::Database)?;
+		.map_err(StorageError::Database)?
+		.ok_or(AuthError::InvalidCredentials)?;
 
 		if !verify(&credentials.password, &account.password_hash)? {
 			return Err(AuthError::InvalidCredentials);

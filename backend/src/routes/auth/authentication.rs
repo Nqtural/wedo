@@ -11,7 +11,7 @@ pub async fn login(
 	Json(request): Json<Credentials>,
 ) -> impl IntoResponse {
 	match storage.create_session(&request).await {
-		Ok(session_id) => (StatusCode::CREATED, Json(session_id)).into_response(),
+		Ok(session_id) => (StatusCode::OK, Json(session_id)).into_response(),
 		Err(error) => decode_auth_error(error).into_response(),
 	}
 }
@@ -43,6 +43,7 @@ fn decode_auth_error(error: AuthError) -> impl IntoResponse {
 fn decode_storage_error(error: StorageError) -> impl IntoResponse {
 	match error {
 		StorageError::NotFound => (StatusCode::NOT_FOUND, Json("error: Session not found")),
+		StorageError::Conflict => (StatusCode::CONFLICT, Json("error: Conflict")),
 		StorageError::Uuid(_) => unreachable!(),
 		StorageError::Database(_) => (
 			StatusCode::INTERNAL_SERVER_ERROR,
