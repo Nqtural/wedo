@@ -1,4 +1,5 @@
 use crate::{
+	authorization::AuthenticatedUser,
 	storage::{Storage, StorageError},
 	types::TaskState,
 };
@@ -23,31 +24,34 @@ use uuid::Uuid;
 // }
 
 pub async fn get(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
 	Path(task_id): Path<Uuid>,
 ) -> impl IntoResponse {
-	match storage.get_task(task_id).await {
+	match storage.get_task(account_id, task_id).await {
 		Ok(list) => (StatusCode::OK, Json(list)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
 pub async fn update(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
 	Path(task_id): Path<Uuid>,
 	Json(request): Json<TaskState>,
 ) -> impl IntoResponse {
-	match storage.update_task(task_id, request).await {
+	match storage.update_task(account_id, task_id, request).await {
 		Ok(list) => (StatusCode::OK, Json(list)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
 pub async fn delete(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
 	Path(task_id): Path<Uuid>,
 ) -> impl IntoResponse {
-	match storage.delete_task(task_id).await {
+	match storage.delete_task(account_id, task_id).await {
 		Ok(_) => StatusCode::NO_CONTENT.into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
@@ -59,18 +63,19 @@ pub struct SetCompleted {
 }
 
 pub async fn set_completed(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
 	Path(task_id): Path<Uuid>,
 	Json(request): Json<SetCompleted>,
 ) -> impl IntoResponse {
-	let mut task = match storage.get_task(task_id).await {
+	let mut task = match storage.get_task(account_id, task_id).await {
 		Ok(task) => task,
 		Err(error) => return decode_storage_error(error).into_response(),
 	};
 
 	task.state.completed = request.completed;
 
-	match storage.update_task(task_id, task.state).await {
+	match storage.update_task(account_id, task_id, task.state).await {
 		Ok(task) => (
 			StatusCode::OK,
 			Json(SetCompleted {

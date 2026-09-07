@@ -2,6 +2,7 @@ use axum::Router;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 
+mod authorization;
 mod routes;
 mod storage;
 mod types;
