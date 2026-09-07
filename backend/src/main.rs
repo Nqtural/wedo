@@ -21,10 +21,16 @@ async fn main() {
 
 	let (bind_address, frontend_url, database_url) = if matches!(mode, Mode::Development) {
 		println!("info: Running in development mode");
+
+		let bind_address = "0.0.0.0:3000".to_string();
+		let database_url = "sqlite://app.db".to_string();
+
+		println!("bind address: {bind_address}\ndatabase URL: {database_url}");
+
 		(
-			"0.0.0.0:3000".to_string(),
+			bind_address,
 			"http://localhost:5173".to_string(),
-			"sqlite://app.db".to_string(),
+			database_url,
 		)
 	} else {
 		dotenvy::dotenv().ok();
