@@ -52,8 +52,3 @@ pub struct Credentials {
 	pub username: String,
 	pub password: String,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthenticatedUser {
-	pub id: Uuid,
-}
