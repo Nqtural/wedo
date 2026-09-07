@@ -1,0 +1,8 @@
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY NOT NULL,
+    account_id TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+);

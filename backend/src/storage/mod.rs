@@ -6,6 +6,24 @@ use uuid::Uuid;
 
 pub mod sqlite;
 
+pub enum AuthError {
+	InvalidCredentials,
+	Storage(StorageError),
+	Hash(bcrypt::BcryptError),
+}
+
+impl From<StorageError> for AuthError {
+	fn from(error: StorageError) -> Self {
+		AuthError::Storage(error)
+	}
+}
+
+impl From<bcrypt::BcryptError> for AuthError {
+	fn from(error: bcrypt::BcryptError) -> Self {
+		AuthError::Hash(error)
+	}
+}
+
 #[derive(Debug)]
 pub enum StorageError {
 	NotFound,
@@ -23,6 +41,12 @@ impl From<uuid::Error> for StorageError {
 impl From<sqlx::Error> for StorageError {
 	fn from(error: sqlx::Error) -> Self {
 		StorageError::Database(error)
+	}
+}
+
+impl From<bcrypt::BcryptError> for StorageError {
+	fn from(error: bcrypt::BcryptError) -> Self {
+		StorageError::Hash(error)
 	}
 }
 
@@ -66,4 +90,9 @@ pub trait Storage: Send + Sync + 'static {
 	async fn create_account(&self, credentials: &Credentials) -> Result<(), StorageError>;
 	async fn get_account(&self, account_id: Uuid) -> Result<Account, StorageError>;
 	async fn delete_account(&self, account_id: Uuid) -> Result<(), StorageError>;
+
+	// sessions
+	async fn create_session(&self, credentials: &Credentials) -> Result<Uuid, AuthError>;
+	async fn validate_session(&self, session_id: Uuid) -> Result<Uuid, StorageError>;
+	async fn delete_session(&self, session_id: Uuid) -> Result<(), StorageError>;
 }
