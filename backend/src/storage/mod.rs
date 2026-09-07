@@ -29,18 +29,38 @@ impl From<sqlx::Error> for StorageError {
 #[async_trait]
 pub trait Storage: Send + Sync + 'static {
 	// lists
-	async fn create_list(&self, state: ListState) -> Result<List, StorageError>;
-	async fn get_list_overview(&self) -> Result<Vec<ListOverview>, StorageError>;
-	async fn get_list(&self, list_id: Uuid) -> Result<ListOverview, StorageError>;
-	async fn update_list(&self, list_id: Uuid, state: ListState) -> Result<List, StorageError>;
-	async fn delete_list(&self, list_id: Uuid) -> Result<(), StorageError>;
+	async fn create_list(&self, account_id: Uuid, state: ListState) -> Result<List, StorageError>;
+	async fn get_list_overview(&self, account_id: Uuid) -> Result<Vec<ListOverview>, StorageError>;
+	async fn get_list(&self, account_id: Uuid, list_id: Uuid)
+	-> Result<ListOverview, StorageError>;
+	async fn update_list(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+		state: ListState,
+	) -> Result<List, StorageError>;
+	async fn delete_list(&self, account_id: Uuid, list_id: Uuid) -> Result<(), StorageError>;
 
 	// tasks
-	async fn create_task(&self, list_id: Uuid, state: TaskState) -> Result<Task, StorageError>;
-	async fn get_task_overview(&self, list_id: Uuid) -> Result<Vec<TaskOverview>, StorageError>;
-	async fn get_task(&self, task_id: Uuid) -> Result<Task, StorageError>;
-	async fn update_task(&self, task_id: Uuid, state: TaskState) -> Result<Task, StorageError>;
-	async fn delete_task(&self, task_id: Uuid) -> Result<(), StorageError>;
+	async fn create_task(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+		state: TaskState,
+	) -> Result<Task, StorageError>;
+	async fn get_task_overview(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+	) -> Result<Vec<TaskOverview>, StorageError>;
+	async fn get_task(&self, account_id: Uuid, task_id: Uuid) -> Result<Task, StorageError>;
+	async fn update_task(
+		&self,
+		account_id: Uuid,
+		task_id: Uuid,
+		state: TaskState,
+	) -> Result<Task, StorageError>;
+	async fn delete_task(&self, account_id: Uuid, task_id: Uuid) -> Result<(), StorageError>;
 
 	// accounts
 	async fn create_account(&self, credentials: &Credentials) -> Result<(), StorageError>;

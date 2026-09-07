@@ -16,78 +16,112 @@ impl SqliteStorage {
 	pub async fn new(path: &str) -> Result<Self, sqlx::Error> {
 		let pool = SqlitePoolOptions::new()
 			.max_connections(5)
+			.after_connect(|conn, _meta| {
+				Box::pin(async move {
+					sqlx::query("PRAGMA foreign_keys = ON")
+						.execute(conn)
+						.await?;
+
+					Ok(())
+				})
+			})
 			.connect(path)
 			.await?;
 
 		Ok(Self { pool })
 	}
 
-	async fn get_list(&self, list_id: Uuid) -> Result<List, StorageError> {
+	async fn get_full_list(&self, account_id: Uuid, list_id: Uuid) -> Result<List, StorageError> {
 		let list_id_string = list_id.to_string();
+		let account_id_string = account_id.to_string();
 
-		let name = sqlx::query!(
+		let list = sqlx::query!(
 			r#"
-			SELECT name FROM lists
-			WHERE id = ?
+			SELECT l.id, l.name
+			FROM lists l
+			INNER JOIN list_membership lm ON lm.list_id = l.id
+			WHERE l.id = ?
+			AND lm.user_id = ?
 			"#,
-			list_id_string
+			list_id_string,
+			account_id_string,
 		)
-		.fetch_one(&self.pool)
+		.fetch_optional(&self.pool)
 		.await
 		.map_err(StorageError::Database)?
-		.name;
+		.ok_or(StorageError::NotFound)?;
 
-		let record = sqlx::query!(
+		let tasks = sqlx::query!(
 			r#"
-			SELECT * FROM tasks
+			SELECT id, name, description, completed
+			FROM tasks
 			WHERE list_id = ?
 			"#,
-			list_id_string
+			list_id_string,
 		)
 		.fetch_all(&self.pool)
 		.await
 		.map_err(StorageError::Database)?;
 
 		Ok(List {
-			id: list_id,
-			items: record
-				.iter()
+			id: Uuid::parse_str(&list.id)?,
+			state: ListState { name: list.name },
+			items: tasks
+				.into_iter()
 				.map(|r| {
 					Ok(Task {
 						id: Uuid::parse_str(&r.id)?,
 						state: TaskState {
-							name: r.name.clone(),
-							description: r.description.clone(),
+							name: r.name,
+							description: r.description,
 							completed: r.completed,
 						},
 					})
 				})
 				.collect::<Result<Vec<_>, StorageError>>()?,
-			state: ListState { name },
 		})
 	}
 }
 
 #[async_trait]
 impl Storage for SqliteStorage {
-	async fn create_list(&self, state: ListState) -> Result<List, StorageError> {
-		let id = Uuid::new_v4();
-		let id_string = id.to_string();
+	async fn create_list(&self, account_id: Uuid, state: ListState) -> Result<List, StorageError> {
+		let list_id = Uuid::new_v4();
+		let list_id_string = list_id.to_string();
+		let account_id_string = account_id.to_string();
+		let role = "OWNER".to_string();
+
+		let mut tx = self.pool.begin().await.map_err(StorageError::Database)?;
 
 		sqlx::query!(
 			r#"
-		    INSERT INTO lists (id, name)
-		    VALUES (?, ?)
-		    "#,
-			id_string,
+			INSERT INTO lists (id, name)
+			VALUES (?, ?)
+			"#,
+			list_id_string,
 			state.name
 		)
-		.execute(&self.pool)
+		.execute(&mut *tx)
 		.await
 		.map_err(StorageError::Database)?;
 
+		sqlx::query!(
+			r#"
+			INSERT INTO list_membership (list_id, user_id, role)
+			VALUES (?, ?, ?)
+			"#,
+			list_id_string,
+			account_id_string,
+			role,
+		)
+		.execute(&mut *tx)
+		.await
+		.map_err(StorageError::Database)?;
+
+		tx.commit().await.map_err(StorageError::Database)?;
+
 		Ok(List {
-			id,
+			id: list_id,
 			items: Vec::new(),
 			state: ListState {
 				name: state.name.to_string(),
@@ -95,36 +129,56 @@ impl Storage for SqliteStorage {
 		})
 	}
 
-	async fn get_list_overview(&self) -> Result<Vec<ListOverview>, StorageError> {
+	async fn get_list_overview(&self, account_id: Uuid) -> Result<Vec<ListOverview>, StorageError> {
+		let account_id_string = account_id.to_string();
+
 		let record = sqlx::query!(
 			r#"
-			SELECT id, name FROM lists
-			"#
+			SELECT l.id, l.name
+			FROM lists l
+			INNER JOIN list_membership lm
+			ON lm.list_id = l.id
+			WHERE lm.user_id = ?
+	        "#,
+			account_id_string,
 		)
 		.fetch_all(&self.pool)
 		.await
 		.map_err(StorageError::Database)?;
 
 		Ok(record
-			.iter()
+			.into_iter()
 			.map(|r| {
 				Ok(ListOverview {
 					id: Uuid::parse_str(&r.id)?,
-					name: r.name.clone(),
+					name: r.name,
 				})
 			})
 			.collect::<Result<Vec<_>, StorageError>>()?)
 	}
 
-	async fn get_list(&self, list_id: Uuid) -> Result<ListOverview, StorageError> {
+	async fn get_list(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+	) -> Result<ListOverview, StorageError> {
+		let account_id_string = account_id.to_string();
 		let list_id_string = list_id.to_string();
 
 		let list = sqlx::query!(
 			r#"
 			SELECT id, name FROM lists
 			WHERE id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership
+				WHERE list_id = ?
+				AND user_id = ?
+			)
 			"#,
 			list_id_string,
+			list_id_string,
+			account_id_string,
 		)
 		.fetch_one(&self.pool)
 		.await
@@ -136,7 +190,13 @@ impl Storage for SqliteStorage {
 		})
 	}
 
-	async fn update_list(&self, list_id: Uuid, state: ListState) -> Result<List, StorageError> {
+	async fn update_list(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+		state: ListState,
+	) -> Result<List, StorageError> {
+		let account_id_string = account_id.to_string();
 		let list_id_string = list_id.to_string();
 
 		let result = sqlx::query!(
@@ -144,9 +204,17 @@ impl Storage for SqliteStorage {
 			UPDATE lists
 			SET name = ?
 			WHERE id = ?
-			"#,
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership
+				WHERE list_id = ?
+				AND user_id = ?
+			)
+		    "#,
 			state.name,
 			list_id_string,
+			list_id_string,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
@@ -156,18 +224,27 @@ impl Storage for SqliteStorage {
 			return Err(StorageError::NotFound);
 		}
 
-		self.get_list(list_id).await
+		self.get_full_list(account_id, list_id).await
 	}
 
-	async fn delete_list(&self, list_id: Uuid) -> Result<(), StorageError> {
+	async fn delete_list(&self, account_id: Uuid, list_id: Uuid) -> Result<(), StorageError> {
+		let account_id_string = account_id.to_string();
 		let list_id_string = list_id.to_string();
 
 		let result = sqlx::query!(
 			r#"
-	        DELETE FROM lists
-	        WHERE id = ?
-	        "#,
+			DELETE FROM lists
+			WHERE id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership
+				WHERE list_id = ?
+				AND user_id = ?
+			)
+			"#,
 			list_id_string,
+			list_id_string,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
@@ -180,96 +257,37 @@ impl Storage for SqliteStorage {
 		Ok(())
 	}
 
-	async fn create_task(&self, list_id: Uuid, state: TaskState) -> Result<Task, StorageError> {
-		let task = Task {
-			id: Uuid::new_v4(),
-			state,
-		};
-
-		let task_id_string = task.id.to_string();
+	async fn create_task(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+		state: TaskState,
+	) -> Result<Task, StorageError> {
+		let account_id_string = account_id.to_string();
+		let task_id = Uuid::new_v4();
+		let task_id_string = task_id.to_string();
 		let list_id_string = list_id.to_string();
 
-		sqlx::query!(
+		let task = Task { id: task_id, state };
+
+		let result = sqlx::query!(
 			r#"
 			INSERT INTO tasks (id, list_id, name, description, completed)
-			VALUES (?, ?, ?, ?, ?)
+			SELECT ?, ?, ?, ?, ?
+			WHERE EXISTS (
+				SELECT 1
+				FROM list_membership
+				WHERE list_id = ?
+				AND user_id = ?
+			)
 			"#,
 			task_id_string,
 			list_id_string,
 			task.state.name,
 			task.state.description,
 			task.state.completed,
-		)
-		.execute(&self.pool)
-		.await
-		.map_err(StorageError::Database)?;
-
-		Ok(task)
-	}
-
-	async fn get_task_overview(&self, list_id: Uuid) -> Result<Vec<TaskOverview>, StorageError> {
-		let list_id_string = list_id.to_string();
-
-		let record = sqlx::query!(
-			r#"
-			SELECT id, name, completed FROM tasks
-			WHERE list_id = ?
-			"#,
 			list_id_string,
-		)
-		.fetch_all(&self.pool)
-		.await
-		.map_err(StorageError::Database)?;
-
-		Ok(record
-			.iter()
-			.map(|r| {
-				Ok(TaskOverview {
-					id: Uuid::parse_str(&r.id)?,
-					name: r.name.clone(),
-					completed: r.completed,
-				})
-			})
-			.collect::<Result<Vec<_>, StorageError>>()?)
-	}
-
-	async fn get_task(&self, task_id: Uuid) -> Result<Task, StorageError> {
-		let task_id_string = task_id.to_string();
-
-		let task = sqlx::query!(
-			r#"
-			SELECT * FROM tasks
-			WHERE id = ?
-			"#,
-			task_id_string,
-		)
-		.fetch_one(&self.pool)
-		.await
-		.map_err(StorageError::Database)?;
-
-		Ok(Task {
-			id: task_id,
-			state: TaskState {
-				name: task.name,
-				description: task.description,
-				completed: task.completed,
-			},
-		})
-	}
-
-	async fn update_task(&self, task_id: Uuid, state: TaskState) -> Result<Task, StorageError> {
-		let task_id_string = task_id.to_string();
-
-		let result = sqlx::query!(
-			r#"
-			UPDATE tasks
-			SET (name, description, completed) = (?, ?, ?)
-			WHERE id = ?
-			"#,
-			state.name,
-			state.description,
-			state.completed,
-			task_id_string,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
@@ -279,18 +297,134 @@ impl Storage for SqliteStorage {
 			return Err(StorageError::NotFound);
 		}
 
-		self.get_task(task_id).await
+		Ok(task)
 	}
 
-	async fn delete_task(&self, task_id: Uuid) -> Result<(), StorageError> {
+	async fn get_task_overview(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+	) -> Result<Vec<TaskOverview>, StorageError> {
+		let account_id_string = account_id.to_string();
+		let list_id_string = list_id.to_string();
+
+		let record = sqlx::query!(
+			r#"
+			SELECT t.id, t.name, t.completed
+			FROM tasks t
+			WHERE t.list_id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership lm
+				WHERE lm.list_id = t.list_id
+				AND lm.user_id = ?
+			)
+			"#,
+			list_id_string,
+			account_id_string,
+		)
+		.fetch_all(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		Ok(record
+			.into_iter()
+			.map(|r| {
+				Ok(TaskOverview {
+					id: Uuid::parse_str(&r.id)?,
+					name: r.name,
+					completed: r.completed,
+				})
+			})
+			.collect::<Result<Vec<_>, StorageError>>()?)
+	}
+
+	async fn get_task(&self, account_id: Uuid, task_id: Uuid) -> Result<Task, StorageError> {
+		let task_id_string = task_id.to_string();
+		let account_id_string = account_id.to_string();
+
+		let task = sqlx::query!(
+			r#"
+			SELECT t.id, t.name, t.description, t.completed
+			FROM tasks t
+			INNER JOIN list_membership lm
+			ON lm.list_id = t.list_id
+			WHERE t.id = ?
+			AND lm.user_id = ?
+			"#,
+			task_id_string,
+			account_id_string,
+		)
+		.fetch_optional(&self.pool)
+		.await
+		.map_err(StorageError::Database)?
+		.ok_or(StorageError::NotFound)?;
+
+		Ok(Task {
+			id: Uuid::parse_str(&task.id)?,
+			state: TaskState {
+				name: task.name,
+				description: task.description,
+				completed: task.completed,
+			},
+		})
+	}
+
+	async fn update_task(
+		&self,
+		account_id: Uuid,
+		task_id: Uuid,
+		state: TaskState,
+	) -> Result<Task, StorageError> {
+		let account_id_string = account_id.to_string();
+		let task_id_string = task_id.to_string();
+
+		let result = sqlx::query!(
+			r#"
+			UPDATE tasks
+			SET name = ?, description = ?, completed = ?
+			WHERE id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership lm
+				WHERE lm.list_id = tasks.list_id
+				AND lm.user_id = ?
+			)
+			"#,
+			state.name,
+			state.description,
+			state.completed,
+			task_id_string,
+			account_id_string,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		if result.rows_affected() == 0 {
+			return Err(StorageError::NotFound);
+		}
+
+		self.get_task(account_id, task_id).await
+	}
+
+	async fn delete_task(&self, account_id: Uuid, task_id: Uuid) -> Result<(), StorageError> {
+		let account_id_string = account_id.to_string();
 		let task_id_string = task_id.to_string();
 
 		let result = sqlx::query!(
 			r#"
 	        DELETE FROM tasks
 	        WHERE id = ?
+	        AND EXISTS (
+	        	SELECT 1
+	        	FROM list_membership lm
+	        	WHERE lm.list_id = tasks.list_id
+	        	AND lm.user_id = ?
+	        )
 	        "#,
 			task_id_string,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
