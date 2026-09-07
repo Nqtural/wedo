@@ -84,11 +84,15 @@ pub async fn set_completed(
 
 fn decode_storage_error(error: StorageError) -> impl IntoResponse {
 	match error {
-		StorageError::NotFound => (StatusCode::NOT_FOUND, Json("error: List not found")),
+		StorageError::NotFound => (StatusCode::NOT_FOUND, Json("error: Task not found")),
 		StorageError::Uuid(_) => unreachable!(),
 		StorageError::Database(_) => (
 			StatusCode::INTERNAL_SERVER_ERROR,
 			Json("error: Database error"),
+		),
+		StorageError::Hash(_) => (
+			StatusCode::INTERNAL_SERVER_ERROR,
+			Json("error: Failed to hash password"),
 		),
 	}
 }

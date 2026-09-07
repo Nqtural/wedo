@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -37,4 +38,17 @@ pub struct TaskOverview {
 	pub id: Uuid,
 	pub name: String,
 	pub completed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Account {
+	pub id: Uuid,
+	pub username: String,
+	pub created_at: NaiveDateTime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Credentials {
+	pub username: String,
+	pub password: String,
 }

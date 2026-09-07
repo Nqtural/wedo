@@ -96,5 +96,9 @@ fn decode_storage_error(error: StorageError) -> impl IntoResponse {
 			StatusCode::INTERNAL_SERVER_ERROR,
 			Json("error: Database error"),
 		),
+		StorageError::Hash(_) => (
+			StatusCode::INTERNAL_SERVER_ERROR,
+			Json("error: Failed to hash password"),
+		),
 	}
 }

@@ -1,9 +1,12 @@
 use async_trait::async_trait;
+use bcrypt::{DEFAULT_COST, hash};
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use uuid::Uuid;
 
 use crate::storage::{Storage, StorageError};
-use crate::types::{List, ListOverview, ListState, Task, TaskOverview, TaskState};
+use crate::types::{
+	Account, Credentials, List, ListOverview, ListState, Task, TaskOverview, TaskState,
+};
 
 pub struct SqliteStorage {
 	pool: SqlitePool,
@@ -288,6 +291,69 @@ impl Storage for SqliteStorage {
 	        WHERE id = ?
 	        "#,
 			task_id_string,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		if result.rows_affected() == 0 {
+			return Err(StorageError::NotFound);
+		}
+
+		Ok(())
+	}
+
+	async fn create_account(&self, credentials: &Credentials) -> Result<(), StorageError> {
+		let password_hash =
+			hash(&credentials.password, DEFAULT_COST).map_err(StorageError::Hash)?;
+		let account_id_string = Uuid::new_v4().to_string();
+
+		sqlx::query!(
+			r#"
+			INSERT INTO accounts (id, username, password_hash)
+			VALUES (?, ?, ?)
+			"#,
+			account_id_string,
+			credentials.username,
+			password_hash,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		Ok(())
+	}
+
+	async fn get_account(&self, account_id: Uuid) -> Result<Account, StorageError> {
+		let account_id_string = account_id.to_string();
+
+		let record = sqlx::query!(
+			r#"
+			SELECT id, username, created_at FROM accounts
+			WHERE id = ?
+			"#,
+			account_id_string,
+		)
+		.fetch_one(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		Ok(Account {
+			id: Uuid::parse_str(&record.id)?,
+			username: record.username,
+			created_at: record.created_at,
+		})
+	}
+
+	async fn delete_account(&self, account_id: Uuid) -> Result<(), StorageError> {
+		let account_id_string = account_id.to_string();
+
+		let result = sqlx::query!(
+			r#"
+	        DELETE FROM accounts
+	        WHERE id = ?
+	        "#,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
