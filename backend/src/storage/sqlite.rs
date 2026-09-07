@@ -530,7 +530,7 @@ impl Storage for SqliteStorage {
 		let session_id = Uuid::new_v4();
 		let session_id_string = session_id.to_string();
 		let account_id_string = account.id.to_string();
-		let expires_at = (Utc::now() + Duration::seconds(30)).naive_utc();
+		let expires_at = (Utc::now() + Duration::days(7)).naive_utc();
 
 		sqlx::query!(
 			r#"
