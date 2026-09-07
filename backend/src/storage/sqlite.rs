@@ -1,9 +1,10 @@
 use async_trait::async_trait;
-use bcrypt::{DEFAULT_COST, hash};
+use bcrypt::{DEFAULT_COST, hash, verify};
+use chrono::{Duration, Utc};
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use uuid::Uuid;
 
-use crate::storage::{Storage, StorageError};
+use crate::storage::{AuthError, Storage, StorageError};
 use crate::types::{
 	Account, Credentials, List, ListOverview, ListState, Task, TaskOverview, TaskState,
 };
@@ -496,6 +497,96 @@ impl Storage for SqliteStorage {
 		if result.rows_affected() == 0 {
 			return Err(StorageError::NotFound);
 		}
+
+		Ok(())
+	}
+
+	async fn create_session(&self, credentials: &Credentials) -> Result<Uuid, AuthError> {
+		let account = sqlx::query!(
+			r#"
+			SELECT id, password_hash
+			FROM accounts
+			WHERE username = ?
+			"#,
+			credentials.username,
+		)
+		.fetch_one(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		if !verify(&credentials.password, &account.password_hash)? {
+			return Err(AuthError::InvalidCredentials);
+		}
+
+		let session_id = Uuid::new_v4();
+		let session_id_string = session_id.to_string();
+		let account_id_string = account.id.to_string();
+		let expires_at = (Utc::now() + Duration::seconds(30)).naive_utc();
+
+		sqlx::query!(
+			r#"
+			INSERT INTO sessions (id, account_id, expires_at)
+			VALUES (?, ?, ?)
+			"#,
+			session_id_string,
+			account_id_string,
+			expires_at,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		Ok(session_id)
+	}
+
+	async fn validate_session(&self, session_id: Uuid) -> Result<Uuid, StorageError> {
+		let session_id_string = session_id.to_string();
+		let mut tx = self.pool.begin().await.map_err(StorageError::Database)?;
+		let now = Utc::now().naive_utc();
+
+		sqlx::query!(
+			r#"
+			DELETE FROM sessions
+			WHERE expires_at <= ?
+			"#,
+			now,
+		)
+		.execute(&mut *tx)
+		.await
+		.map_err(StorageError::Database)?;
+
+		let account_id = sqlx::query!(
+			r#"
+			SELECT account_id
+			FROM sessions
+			WHERE id = ?
+			"#,
+			session_id_string,
+		)
+		.fetch_optional(&mut *tx)
+		.await
+		.map_err(StorageError::Database)?
+		.ok_or(StorageError::NotFound)?
+		.account_id;
+
+		tx.commit().await.map_err(StorageError::Database)?;
+
+		Ok(Uuid::parse_str(&account_id)?)
+	}
+
+	async fn delete_session(&self, session_id: Uuid) -> Result<(), StorageError> {
+		let session_id_string = session_id.to_string();
+
+		sqlx::query!(
+			r#"
+	        DELETE FROM sessions
+	        WHERE id = ?
+	        "#,
+			session_id_string,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
 
 		Ok(())
 	}
