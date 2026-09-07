@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { apiFetch } from "@/api";
+
 const router = useRouter();
 
 import Checkbox from "../components/Checkbox.vue";
@@ -26,44 +28,23 @@ const selectedTaskId = ref<string | null>(null);
 const creatingTask = ref(false);
 
 async function getTasks() {
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/lists/${listId}/tasks`,
-	);
-
-	if (!response.ok) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
-
-	taskList.value = await response.json();
+	taskList.value = await apiFetch<Task[]>(`/lists/${listId}/tasks`);
 }
 
 onMounted(async () => {
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/lists/${listId}`,
-	);
-
-	if (!response.ok) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
-
-	listName.value = (await response.json()).name;
-
-	getTasks();
+	listName.value = (
+		await apiFetch<{ id: string; name: string }>(`/lists/${listId}`)
+	).name;
+	await getTasks();
 });
 
 async function toggleCompleted(task: Task) {
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/tasks/${task.id}/completed`,
-		{
+	task.completed = (
+		await apiFetch<{ completed: boolean }>(`/tasks/${task.id}/completed`, {
 			method: "PUT",
 			body: JSON.stringify({ completed: task.completed }),
-			headers: {
-				"Content-Type": "application/json",
-			},
-		},
-	);
-
-	task.completed = (await response.json()).completed;
+		})
+	).completed;
 }
 
 function updateTaskInList(updatedTask: {
@@ -85,11 +66,11 @@ function newTask() {
 	creatingTask.value = true;
 }
 
-function closeTask() {
+async function closeTask() {
 	selectedTaskId.value = null;
 	creatingTask.value = false;
 
-	getTasks();
+	await getTasks();
 }
 </script>
 

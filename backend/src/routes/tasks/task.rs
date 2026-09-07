@@ -90,6 +90,7 @@ pub async fn set_completed(
 fn decode_storage_error(error: StorageError) -> impl IntoResponse {
 	match error {
 		StorageError::NotFound => (StatusCode::NOT_FOUND, Json("error: Task not found")),
+		StorageError::Conflict => (StatusCode::CONFLICT, Json("error: Conflict")),
 		StorageError::Uuid(_) => unreachable!(),
 		StorageError::Database(_) => (
 			StatusCode::INTERNAL_SERVER_ERROR,

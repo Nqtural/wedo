@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { apiFetch } from "@/api";
 
 import Checkbox from "../components/Checkbox.vue";
 import EditModal from "../components/EditModal.vue";
@@ -45,15 +46,7 @@ onMounted(async () => {
 	}
 
 	try {
-		const response = await fetch(
-			`${import.meta.env.VITE_API_URL}/tasks/${props.taskId}`,
-		);
-
-		if (!response.ok) {
-			throw new Error(`HTTP error: ${response.status}`);
-		}
-
-		task.value = await response.json();
+		task.value = await apiFetch<TaskDetails>(`/tasks/${props.taskId}`);
 	} catch (e) {
 		error.value = e instanceof Error ? e.message : "Unknown error";
 	} finally {
@@ -74,24 +67,14 @@ async function saveTask() {
 async function createTask() {
 	if (!task.value) return;
 
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/lists/${props.listId}/tasks`,
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				name: task.value.state.name,
-				description: task.value.state.description,
-				completed: task.value.state.completed,
-			}),
-		},
-	);
-
-	if (!response.ok) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
+	await apiFetch(`/lists/${props.listId}/tasks`, {
+		method: "POST",
+		body: JSON.stringify({
+			name: task.value.state.name,
+			description: task.value.state.description,
+			completed: task.value.state.completed,
+		}),
+	});
 
 	emit("close");
 }
@@ -99,39 +82,22 @@ async function createTask() {
 async function updateTask() {
 	if (!task.value) return;
 
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/tasks/${props.taskId}`,
-		{
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				name: task.value.state.name,
-				description: task.value.state.description,
-				completed: task.value.state.completed,
-			}),
-		},
-	);
-
-	if (!response.ok) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
+	await apiFetch(`/tasks/${props.taskId}`, {
+		method: "PUT",
+		body: JSON.stringify({
+			name: task.value.state.name,
+			description: task.value.state.description,
+			completed: task.value.state.completed,
+		}),
+	});
 
 	emit("close");
 }
 
 async function deleteTask() {
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/tasks/${props.taskId}`,
-		{
-			method: "DELETE",
-		},
-	);
-
-	if (response.status !== 204) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
+	await apiFetch(`/tasks/${props.taskId}`, {
+		method: "DELETE",
+	});
 
 	emit("close");
 }

@@ -27,6 +27,7 @@ impl From<bcrypt::BcryptError> for AuthError {
 #[derive(Debug)]
 pub enum StorageError {
 	NotFound,
+	Conflict,
 	Database(sqlx::Error),
 	Uuid(uuid::Error),
 	Hash(bcrypt::BcryptError),

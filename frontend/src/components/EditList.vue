@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { apiFetch } from "@/api";
 
 import EditModal from "./EditModal.vue";
 
@@ -35,15 +36,7 @@ onMounted(async () => {
 	}
 
 	try {
-		const response = await fetch(
-			`${import.meta.env.VITE_API_URL}/lists/${props.listId}`,
-		);
-
-		if (!response.ok) {
-			throw new Error(`HTTP error: ${response.status}`);
-		}
-
-		list.value = await response.json();
+		list.value = await apiFetch<List>(`/lists/${props.listId}`);
 	} catch (e) {
 		error.value = e instanceof Error ? e.message : "Unknown error";
 	} finally {
@@ -64,19 +57,12 @@ async function saveList() {
 async function createList() {
 	if (!list.value) return;
 
-	const response = await fetch(`${import.meta.env.VITE_API_URL}/lists`, {
+	await apiFetch("/lists", {
 		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
 		body: JSON.stringify({
 			name: list.value.name,
 		}),
 	});
-
-	if (!response.ok) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
 
 	emit("close");
 }
@@ -84,37 +70,20 @@ async function createList() {
 async function updateList() {
 	if (!list.value) return;
 
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/lists/${props.listId}`,
-		{
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				name: list.value.name,
-			}),
-		},
-	);
-
-	if (!response.ok) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
+	await apiFetch(`/lists/${props.listId}`, {
+		method: "PUT",
+		body: JSON.stringify({
+			name: list.value.name,
+		}),
+	});
 
 	emit("close");
 }
 
 async function deleteList() {
-	const response = await fetch(
-		`${import.meta.env.VITE_API_URL}/lists/${props.listId}`,
-		{
-			method: "DELETE",
-		},
-	);
-
-	if (response.status !== 204) {
-		throw new Error(`HTTP error: ${response.status}`);
-	}
+	await apiFetch(`/lists/${props.listId}`, {
+		method: "DELETE",
+	});
 
 	emit("close");
 }
