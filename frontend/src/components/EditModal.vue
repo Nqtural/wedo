@@ -2,6 +2,7 @@
 import Button from "./Button.vue";
 
 defineProps<{
+	title: string;
 	create: boolean;
 	loading: boolean;
 	error: string | null;
@@ -17,9 +18,12 @@ const emit = defineEmits<{
 <template>
 	<div class="overlay" @click="emit('close')">
 		<div class="edit-modal" @click.stop>
-			<Button type="button" variant="primary" @click="emit('close')">
-				Close
-			</Button>
+			<div class="header">
+				<h2>{{ title }}</h2>
+				<Button type="button" variant="primary" @click="emit('close')">
+					Close
+				</Button>
+			</div>
 
 			<p v-if="loading">Loading...</p>
 
@@ -75,17 +79,25 @@ const emit = defineEmits<{
 	padding: 20px;
 }
 
+.header {
+	display: flex;
+	justify-content: space-between;
+}
+
+h2 {
+	margin: 0;
+}
+
 .edit-modal > button {
 	position: absolute;
 	right: 5px;
 	top: 5px;
 }
 
-form {
+form, .edit-modal {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
-	height: 100%;
 }
 
 .btn-container {

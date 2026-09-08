@@ -108,6 +108,7 @@ async function deleteTask() {
 		:create="create"
 		:loading="loading"
 		:error="error"
+		title="Edit task"
 		@close="emit('close')"
 		@save="saveTask"
 		@delete="deleteTask"
