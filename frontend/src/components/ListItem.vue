@@ -1,6 +1,21 @@
+<script setup lang="ts">
+type Props = {
+	expanded?: boolean;
+};
+
+withDefaults(defineProps<Props>(), {
+	expanded: false,
+});
+</script>
+
 <template>
-	<li>
-		<slot />
+	<li :class="{ expanded: expanded }">
+		<div class="wrapper wrapper--normal">
+			<slot />
+		</div>
+		<div class="wrapper wrapper--expanded">
+			<slot name="expanded" />
+		</div>
 	</li>
 </template>
 
@@ -13,13 +28,13 @@ li {
 	height: var(--li-height);
 	flex-shrink: 0;
 	display: flex;
-	position: relative;
-	width: 100%;
-	box-sizing: border-box;
+	flex-direction: column;
 	transition:
+		height var(--transition-slow),
 		border-color var(--transition-fast),
 		filter var(--transition-slow);
 	filter: var(--shadow-sm);
+	overflow: hidden;
 
 	&:hover {
 		filter: var(--shadow-md);
@@ -27,6 +42,28 @@ li {
 		& .btn-container {
 			opacity: 1;
 		}
+	}
+
+	&.expanded {
+		height: calc(var(--li-height) * 2.5);
+	}
+}
+
+.wrapper {
+	display: flex;
+	width: 100%;
+	padding: 10px;
+	box-sizing: border-box;
+	position: relative;
+	flex-shrink: 0;
+
+	&.wrapper--normal {
+		height: var(--li-height);
+	}
+
+	&.wrapper--expanded {
+		height: calc(var(--li-height) * 1.5);
+		padding-top: 0;
 	}
 }
 </style>
