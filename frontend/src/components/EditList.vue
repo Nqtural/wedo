@@ -94,12 +94,9 @@ async function deleteList() {
 }
 
 async function getShareLink() {
-	invitationCode.value = await apiFetch<string>(
-		`/lists/${props.listId}/share`,
-		{
-			method: "POST",
-		},
-	);
+	invitationCode.value = await apiFetch<string>(`/lists/${props.listId}/share`, {
+		method: "POST",
+	});
 }
 </script>
 
@@ -108,16 +105,14 @@ async function getShareLink() {
 		:create="create"
 		:loading="loading"
 		:error="error"
+		title="Edit list"
 		@close="emit('close')"
 		@save="saveList"
 		@delete="deleteList"
 	>
 		<label>Name</label>
 		<input v-if="list" v-model="list.name" type="text" />
-		<LinkCopy
-			:hidden="invitationCode === null"
-			:link="`${origin}/join/${invitationCode}`"
-		/>
+		<LinkCopy :hidden="invitationCode === null" :link="`${origin}/join/${invitationCode}`" />
 		<template v-if="!create" #extra-buttons>
 			<Button @click="getShareLink()" variant="primary">Share</Button>
 		</template>
