@@ -102,6 +102,17 @@ pub async fn new_tag(
 	}
 }
 
+pub async fn apply_tag(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path((task_id, tag_id)): Path<(Uuid, Uuid)>,
+) -> impl IntoResponse {
+	match storage.apply_tag(account_id, tag_id, task_id).await {
+		Ok(tag) => (StatusCode::OK, Json(tag)).into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
 pub async fn remove_tag(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
