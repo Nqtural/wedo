@@ -28,6 +28,7 @@ pub async fn logout(
 
 fn decode_auth_error(error: AuthError) -> impl IntoResponse {
 	match error {
+		AuthError::Forbidden => StatusCode::FORBIDDEN.into_response(),
 		AuthError::InvalidCredentials => {
 			(StatusCode::UNAUTHORIZED, Json("error: Invalid credentials")).into_response()
 		}

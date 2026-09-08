@@ -14,7 +14,7 @@ pub struct ListState {
 	pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListOverview {
 	pub id: Uuid,
 	pub name: String,
@@ -51,4 +51,10 @@ pub struct Account {
 pub struct Credentials {
 	pub username: String,
 	pub password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JoinResult {
+	pub list: ListOverview,
+	pub joined: bool,
 }

@@ -1,13 +1,24 @@
 use async_trait::async_trait;
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
+use rand::RngExt;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use uuid::Uuid;
 
 use crate::storage::{AuthError, Storage, StorageError};
 use crate::types::{
-	Account, Credentials, List, ListOverview, ListState, Task, TaskOverview, TaskState,
+	Account, Credentials, JoinResult, List, ListOverview, ListState, Task, TaskOverview, TaskState,
 };
+
+const CHARSET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+fn base62_id() -> String {
+	let mut rng = rand::rng();
+
+	(0..6)
+		.map(|_| CHARSET[rng.random_range(0..62)] as char)
+		.collect()
+}
 
 pub struct SqliteStorage {
 	pool: SqlitePool,
@@ -415,15 +426,15 @@ impl Storage for SqliteStorage {
 
 		let result = sqlx::query!(
 			r#"
-	        DELETE FROM tasks
-	        WHERE id = ?
-	        AND EXISTS (
-	        	SELECT 1
-	        	FROM list_membership lm
-	        	WHERE lm.list_id = tasks.list_id
-	        	AND lm.user_id = ?
-	        )
-	        "#,
+			DELETE FROM tasks
+			WHERE id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership lm
+				WHERE lm.list_id = tasks.list_id
+				AND lm.user_id = ?
+			)
+			"#,
 			task_id_string,
 			account_id_string,
 		)
@@ -598,5 +609,130 @@ impl Storage for SqliteStorage {
 		.map_err(StorageError::Database)?;
 
 		Ok(())
+	}
+
+	async fn create_invitation(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+	) -> Result<String, AuthError> {
+		let account_id_string = account_id.to_string();
+		let list_id_string = list_id.to_string();
+
+		const MAX_ATTEMPTS: usize = 5;
+
+		for _ in 0..MAX_ATTEMPTS {
+			let invitation_id = base62_id();
+			let expires_at = (Utc::now() + Duration::days(1)).naive_utc();
+
+			let result = sqlx::query!(
+				r#"
+				INSERT INTO invitations (id, account_id, list_id, expires_at)
+				SELECT ?, ?, ?, ?
+				WHERE EXISTS (
+					SELECT 1
+					FROM list_membership
+					WHERE list_id = ?
+					AND user_id = ?
+				)
+				"#,
+				invitation_id,
+				account_id_string,
+				list_id_string,
+				expires_at,
+				list_id_string,
+				account_id_string,
+			)
+			.execute(&self.pool)
+			.await;
+
+			match result {
+				Ok(result) if result.rows_affected() == 1 => {
+					return Ok(invitation_id);
+				}
+				Ok(_) => {
+					// not a member of the list
+					return Err(AuthError::Forbidden);
+				}
+				Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
+					continue;
+				}
+				Err(err) => return Err(AuthError::Storage(StorageError::Database(err))),
+			}
+		}
+
+		Err(AuthError::Storage(StorageError::Database(
+			sqlx::Error::Protocol("failed to generate a unique invitation ID".into()),
+		)))
+	}
+
+	async fn accept_invitation(
+		&self,
+		account_id: Uuid,
+		invitation_id: String,
+	) -> Result<JoinResult, StorageError> {
+		let account_id_string = account_id.to_string();
+		let role = "OWNER".to_string(); // everyone is owner for now
+		let now = Utc::now().naive_utc();
+
+		let mut tx = self.pool.begin().await.map_err(StorageError::Database)?;
+
+		let list_id_string = sqlx::query!(
+			r#"
+			SELECT list_id
+			FROM invitations
+			WHERE id = ?
+			AND expires_at > ?
+			"#,
+			invitation_id,
+			now,
+		)
+		.fetch_optional(&mut *tx)
+		.await
+		.map_err(StorageError::Database)?
+		.ok_or(StorageError::NotFound)?
+		.list_id;
+
+		let joined = match sqlx::query!(
+			r#"
+			INSERT INTO list_membership (list_id, user_id, role)
+			VALUES (?, ?, ?)
+			ON CONFLICT (list_id, user_id) DO NOTHING
+			"#,
+			list_id_string,
+			account_id_string,
+			role,
+		)
+		.execute(&mut *tx)
+		.await
+		.map_err(StorageError::Database)?
+		.rows_affected()
+		{
+			1 => true,
+			0 => false,
+			_ => unreachable!(),
+		};
+
+		let record = sqlx::query!(
+			r#"
+			SELECT id, name
+			FROM lists
+			WHERE id = ?
+			"#,
+			list_id_string,
+		)
+		.fetch_one(&mut *tx)
+		.await
+		.map_err(StorageError::Database)?;
+
+		tx.commit().await.map_err(StorageError::Database)?;
+
+		Ok(JoinResult {
+			list: ListOverview {
+				id: Uuid::parse_str(&record.id)?,
+				name: record.name,
+			},
+			joined,
+		})
 	}
 }

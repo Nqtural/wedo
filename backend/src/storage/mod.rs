@@ -1,5 +1,5 @@
 use crate::types::{
-	Account, Credentials, List, ListOverview, ListState, Task, TaskOverview, TaskState,
+	Account, Credentials, JoinResult, List, ListOverview, ListState, Task, TaskOverview, TaskState,
 };
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -7,6 +7,7 @@ use uuid::Uuid;
 pub mod sqlite;
 
 pub enum AuthError {
+	Forbidden,
 	InvalidCredentials,
 	Storage(StorageError),
 	Hash(bcrypt::BcryptError),
@@ -96,4 +97,13 @@ pub trait Storage: Send + Sync + 'static {
 	async fn create_session(&self, credentials: &Credentials) -> Result<Uuid, AuthError>;
 	async fn validate_session(&self, session_id: Uuid) -> Result<Uuid, StorageError>;
 	async fn delete_session(&self, session_id: Uuid) -> Result<(), StorageError>;
+
+	// sharing
+	async fn create_invitation(&self, account_id: Uuid, list_id: Uuid)
+	-> Result<String, AuthError>;
+	async fn accept_invitation(
+		&self,
+		account_id: Uuid,
+		invitation_id: String,
+	) -> Result<JoinResult, StorageError>;
 }

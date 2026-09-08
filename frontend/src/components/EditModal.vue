@@ -31,6 +31,9 @@ const emit = defineEmits<{
 				<slot />
 
 				<div class="btn-container">
+					<div class="btn-container">
+						<slot name="extra-buttons" />
+					</div>
 					<Button
 						v-if="!create"
 						type="button"
@@ -88,7 +91,7 @@ form {
 .btn-container {
 	margin-top: auto;
 	display: flex;
-	justify-content: end;
+	flex: 1;
 	gap: 10px;
 }
 
