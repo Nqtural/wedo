@@ -7,7 +7,8 @@ use uuid::Uuid;
 
 use crate::storage::{AuthError, Storage, StorageError};
 use crate::types::{
-	Account, Credentials, JoinResult, List, ListOverview, ListState, Task, TaskOverview, TaskState,
+	Account, Credentials, JoinResult, List, ListOverview, ListState, Tag, TagState, Task,
+	TaskOverview, TaskState,
 };
 
 const CHARSET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -75,22 +76,70 @@ impl SqliteStorage {
 		.await
 		.map_err(StorageError::Database)?;
 
+		let mut items = Vec::new();
+
+		for task in tasks {
+			items.push(Task {
+				id: Uuid::parse_str(&task.id)?,
+				state: TaskState {
+					name: task.name,
+					description: task.description,
+					completed: task.completed,
+					tags: self.get_task_tags(&task.id).await?,
+				},
+			})
+		}
+
 		Ok(List {
 			id: Uuid::parse_str(&list.id)?,
 			state: ListState { name: list.name },
-			items: tasks
-				.into_iter()
-				.map(|r| {
-					Ok(Task {
-						id: Uuid::parse_str(&r.id)?,
-						state: TaskState {
-							name: r.name,
-							description: r.description,
-							completed: r.completed,
-						},
-					})
-				})
-				.collect::<Result<Vec<_>, StorageError>>()?,
+			items,
+		})
+	}
+
+	async fn get_task_tags(&self, task_id_string: &str) -> Result<Vec<Tag>, StorageError> {
+		let tag_ids = sqlx::query!(
+			r#"
+			SELECT tag_id
+			FROM task_tags
+			WHERE task_id = ?
+			"#,
+			task_id_string,
+		)
+		.fetch_all(&self.pool)
+		.await
+		.map_err(StorageError::Database)?
+		.iter()
+		.map(|r| r.tag_id.clone())
+		.collect::<Vec<_>>();
+
+		let mut tags = Vec::new();
+		for tag_id in tag_ids {
+			tags.push(self.get_tag(&tag_id).await?);
+		}
+
+		Ok(tags)
+	}
+
+	async fn get_tag(&self, tag_id_string: &str) -> Result<Tag, StorageError> {
+		let record = sqlx::query!(
+			r#"
+			SELECT *
+			FROM tags
+			WHERE id = ?
+			"#,
+			tag_id_string,
+		)
+		.fetch_one(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		Ok(Tag {
+			id: Uuid::parse_str(&record.id)?,
+			state: TagState {
+				name: record.name,
+				color_key: record.color_key,
+			},
 		})
 	}
 }
@@ -339,16 +388,18 @@ impl Storage for SqliteStorage {
 		.await
 		.map_err(StorageError::Database)?;
 
-		Ok(record
-			.into_iter()
-			.map(|r| {
-				Ok(TaskOverview {
-					id: Uuid::parse_str(&r.id)?,
-					name: r.name,
-					completed: r.completed,
-				})
-			})
-			.collect::<Result<Vec<_>, StorageError>>()?)
+		let mut tasks = Vec::with_capacity(record.len());
+
+		for r in record {
+			tasks.push(TaskOverview {
+				id: Uuid::parse_str(&r.id)?,
+				name: r.name,
+				completed: r.completed,
+				tags: self.get_task_tags(&r.id).await?,
+			});
+		}
+
+		Ok(tasks)
 	}
 
 	async fn get_task(&self, account_id: Uuid, task_id: Uuid) -> Result<Task, StorageError> {
@@ -378,6 +429,7 @@ impl Storage for SqliteStorage {
 				name: task.name,
 				description: task.description,
 				completed: task.completed,
+				tags: self.get_task_tags(&task.id).await?,
 			},
 		})
 	}
@@ -466,10 +518,10 @@ impl Storage for SqliteStorage {
 		.execute(&self.pool)
 		.await
 		.map_err(|err| {
-			if let sqlx::Error::Database(db_err) = &err {
-				if db_err.is_unique_violation() {
-					return StorageError::Conflict;
-				}
+			if let sqlx::Error::Database(db_err) = &err
+				&& db_err.is_unique_violation()
+			{
+				return StorageError::Conflict;
 			}
 
 			StorageError::Database(err)
@@ -734,5 +786,127 @@ impl Storage for SqliteStorage {
 			},
 			joined,
 		})
+	}
+
+	async fn create_tag(&self, state: TagState) -> Result<Tag, StorageError> {
+		let id = Uuid::new_v4();
+		let id_string = id.to_string();
+
+		sqlx::query!(
+			r#"
+			INSERT INTO tags (id, name, color_key)
+			VALUES (?, ?, ?)
+			"#,
+			id_string,
+			state.name,
+			state.color_key,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		Ok(Tag { id, state })
+	}
+
+	async fn update_tag(
+		&self,
+		account_id: Uuid,
+		tag_id: Uuid,
+		tag_state: TagState,
+	) -> Result<Tag, StorageError> {
+		let tag_id_string = tag_id.to_string();
+
+		let result = sqlx::query!(
+			r#"
+			UPDATE tags
+			SET name = ?, color_key = ?
+			WHERE id = ?
+		    "#,
+			tag_state.name,
+			tag_state.color_key,
+			tag_id_string,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		if result.rows_affected() == 0 {
+			return Err(StorageError::NotFound);
+		}
+
+		self.get_tag(&tag_id_string).await
+	}
+
+	async fn apply_tag(
+		&self,
+		account_id: Uuid,
+		tag_id: Uuid,
+		task_id: Uuid,
+	) -> Result<Tag, StorageError> {
+		let tag_id_string = tag_id.to_string();
+		let task_id_string = task_id.to_string();
+
+		sqlx::query!(
+			r#"
+			INSERT INTO task_tags (task_id, tag_id)
+			VALUES (?, ?)
+			"#,
+			task_id_string,
+			tag_id_string,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		self.get_tag(&tag_id_string).await
+	}
+
+	async fn remove_tag(
+		&self,
+		account_id: Uuid,
+		tag_id: Uuid,
+		task_id: Uuid,
+	) -> Result<(), StorageError> {
+		let tag_id_string = tag_id.to_string();
+		let task_id_string = task_id.to_string();
+
+		let result = sqlx::query!(
+			r#"
+			DELETE FROM task_tags
+			WHERE task_id = ? AND tag_id = ?
+			"#,
+			task_id_string,
+			tag_id_string,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		if result.rows_affected() == 0 {
+			return Err(StorageError::NotFound);
+		}
+
+		Ok(())
+	}
+
+	async fn delete_tag(&self, account_id: Uuid, tag_id: Uuid) -> Result<(), StorageError> {
+		let tag_id_string = tag_id.to_string();
+
+		let result = sqlx::query!(
+			r#"
+	        DELETE FROM tags
+	        WHERE id = ?
+	        "#,
+			tag_id_string,
+		)
+		.execute(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		if result.rows_affected() == 0 {
+			return Err(StorageError::NotFound);
+		}
+
+		Ok(())
 	}
 }
