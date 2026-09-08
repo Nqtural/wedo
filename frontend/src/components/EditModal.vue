@@ -94,7 +94,8 @@ h2 {
 	top: 5px;
 }
 
-form, .edit-modal {
+form,
+.edit-modal {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;

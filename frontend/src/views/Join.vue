@@ -6,13 +6,13 @@ import { apiFetch } from "@/api";
 import Button from "../components/Button.vue";
 
 interface List {
-	id: string,
-	name: string,
+	id: string;
+	name: string;
 }
 
 interface JoinResult {
-	list: List,
-	joined: boolean,
+	list: List;
+	joined: boolean;
 }
 
 const router = useRouter();
@@ -52,10 +52,14 @@ onMounted(async () => {
 			await router.push(`/lists/${joinResult.value.list.id}`);
 		}
 	} catch (error) {
-		errorTitle.value = errorTitles[Math.floor(Math.random() * errorTitles.length)]!;
+		errorTitle.value =
+			errorTitles[Math.floor(Math.random() * errorTitles.length)]!;
 		if (error instanceof Error && error.message === "HTTP error: 404") {
 			joinError.value = "Invalid or expired invitation link.";
-		} else if (error instanceof Error && error.message === "HTTP error: 500") {
+		} else if (
+			error instanceof Error &&
+			error.message === "HTTP error: 500"
+		) {
 			joinError.value = "Internal server error.";
 		} else {
 			joinError.value = "An unexpected error occurred.";
@@ -74,8 +78,14 @@ onMounted(async () => {
 				<hr />
 				<p>You have joined {{ joinResult.list.name }}.</p>
 				<div class="btn-wrapper">
-					<Button variant="primary" to="/lists">Go to your lists</Button>
-					<Button variant="primary" :to="`/lists/${joinResult.list.id}`">Go to {{ joinResult.list.name }}</Button>
+					<Button variant="primary" to="/lists"
+						>Go to your lists</Button
+					>
+					<Button
+						variant="primary"
+						:to="`/lists/${joinResult.list.id}`"
+						>Go to {{ joinResult.list.name }}</Button
+					>
 				</div>
 			</template>
 			<template v-else>
@@ -83,7 +93,9 @@ onMounted(async () => {
 				<hr />
 				<p>{{ joinError }}</p>
 				<div class="btn-wrapper">
-					<Button variant="primary" to="/lists">Go to your lists</Button>
+					<Button variant="primary" to="/lists"
+						>Go to your lists</Button
+					>
 				</div>
 			</template>
 		</template>

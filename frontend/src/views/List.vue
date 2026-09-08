@@ -19,6 +19,7 @@ const listId = route.params.id;
 interface Task {
 	id: string;
 	name: string;
+	description?: string;
 	completed: boolean;
 }
 
@@ -26,6 +27,7 @@ const taskList = ref<Task[]>([]);
 const listName = ref<string>("");
 const selectedTaskId = ref<string | null>(null);
 const creatingTask = ref(false);
+const expandedTaskId = ref<string | null>(null);
 
 async function getTasks() {
 	taskList.value = await apiFetch<Task[]>(`/lists/${listId}/tasks`);
@@ -47,11 +49,7 @@ async function toggleCompleted(task: Task) {
 	).completed;
 }
 
-function updateTaskInList(updatedTask: {
-	id: string;
-	name: string;
-	completed: boolean;
-}) {
+function updateTaskInList(updatedTask: Task) {
 	const existingTask = taskList.value.find(
 		(task) => task.id === updatedTask.id,
 	);
@@ -72,6 +70,28 @@ async function closeTask() {
 
 	await getTasks();
 }
+
+async function toggleExpandTask(task: Task) {
+	if (expandedTaskId.value === task.id) {
+		expandedTaskId.value = null;
+		return;
+	}
+
+	if (task.description === null) {
+		task.description = (
+			await apiFetch<{
+				id: string;
+				state: {
+					name: string;
+					description: string;
+					completed: boolean;
+				};
+			}>(`/tasks/${task.id}`)
+		).state.description;
+	}
+
+	expandedTaskId.value = task.id;
+}
 </script>
 
 <template>
@@ -80,7 +100,12 @@ async function closeTask() {
 			<Button variant="primary" :to="{ name: 'Lists' }">Back</Button>
 		</template>
 
-		<ListItem v-for="task in taskList" :key="task.id">
+		<ListItem
+			@click.stop="toggleExpandTask(task)"
+			v-for="task in taskList"
+			:key="task.id"
+			:expanded="task.id === expandedTaskId"
+		>
 			<div class="task" :class="{ completed: task.completed }">
 				{{ task.name }}
 			</div>
@@ -104,6 +129,15 @@ async function closeTask() {
 					/>
 				</template>
 			</ListItemActions>
+
+			<template v-if="task.description" #expanded>
+				<p class="task__description">{{ task.description }}</p>
+			</template>
+			<template v-else #expanded>
+				<p class="task__description task__description--empty">
+					No description
+				</p>
+			</template>
 		</ListItem>
 
 		<template #actions>
@@ -129,14 +163,28 @@ async function closeTask() {
 	flex: 1;
 	text-decoration: none;
 	color: var(--color-text);
-	padding: 10px;
 	border-radius: var(--radius-sm);
 	transition: background var(--transition-fast);
 }
 
-li:has(.completed) {
-	border-color: var(--color-success);
-	text-decoration: line-through;
+.task__description {
+	font-size: 0.9em;
+	color: var(--color-text-muted);
+	margin: 0;
+}
+
+.task__description--empty {
+	color: var(--color-text-subtle);
+}
+
+li {
+	&:has(.completed) {
+		border-color: var(--color-success);
+	}
+
+	.completed {
+		text-decoration: line-through;
+	}
 }
 
 li:hover .btn-container > * {
