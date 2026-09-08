@@ -13,5 +13,6 @@ pub fn tasks() -> Router<Arc<dyn Storage>> {
 		.route("/{task_id}", delete(task::delete))
 		.route("/{task_id}/completed", put(task::set_completed))
 		.route("/{task_id}/tags", post(task::new_tag))
+		.route("/{task_id}/tags/{task_id}/apply", post(task::apply_tag))
 		.route("/{task_id}/tags/{task_id}/remove", post(task::remove_tag))
 }
