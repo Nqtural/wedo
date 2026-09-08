@@ -1,3 +1,4 @@
+.sqlx/
 target/
 app.db
 app.db-shm

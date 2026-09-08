@@ -1,7 +1,7 @@
 use crate::{
 	authorization::AuthenticatedUser,
 	storage::{Storage, StorageError},
-	types::TaskState,
+	types::{TagState, TaskState},
 };
 use axum::{
 	Json,
@@ -87,18 +87,38 @@ pub async fn set_completed(
 	}
 }
 
+pub async fn new_tag(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(task_id): Path<Uuid>,
+	Json(request): Json<TagState>,
+) -> impl IntoResponse {
+	match storage.create_tag(request).await {
+		Ok(tag) => match storage.apply_tag(account_id, tag.id, task_id).await {
+			Ok(tag) => (StatusCode::CREATED, Json(tag)).into_response(),
+			Err(error) => decode_storage_error(error).into_response(),
+		},
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
+pub async fn remove_tag(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path((task_id, tag_id)): Path<(Uuid, Uuid)>,
+) -> impl IntoResponse {
+	match storage.remove_tag(account_id, tag_id, task_id).await {
+		Ok(()) => StatusCode::OK.into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
 fn decode_storage_error(error: StorageError) -> impl IntoResponse {
 	match error {
-		StorageError::NotFound => (StatusCode::NOT_FOUND, Json("error: Task not found")),
-		StorageError::Conflict => (StatusCode::CONFLICT, Json("error: Conflict")),
+		StorageError::NotFound => StatusCode::NOT_FOUND,
+		StorageError::Conflict => StatusCode::CONFLICT,
 		StorageError::Uuid(_) => unreachable!(),
-		StorageError::Database(_) => (
-			StatusCode::INTERNAL_SERVER_ERROR,
-			Json("error: Database error"),
-		),
-		StorageError::Hash(_) => (
-			StatusCode::INTERNAL_SERVER_ERROR,
-			Json("error: Failed to hash password"),
-		),
+		StorageError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
+		StorageError::Hash(_) => StatusCode::INTERNAL_SERVER_ERROR,
 	}
 }

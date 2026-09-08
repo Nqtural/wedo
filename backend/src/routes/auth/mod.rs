@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::routing::{Router, delete, get, post, put};
+use axum::routing::{Router, post};
 
 use crate::storage::Storage;
 

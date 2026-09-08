@@ -1,5 +1,6 @@
 use crate::types::{
-	Account, Credentials, JoinResult, List, ListOverview, ListState, Task, TaskOverview, TaskState,
+	Account, Credentials, JoinResult, List, ListOverview, ListState, Tag, TagState, Task,
+	TaskOverview, TaskState,
 };
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -106,4 +107,26 @@ pub trait Storage: Send + Sync + 'static {
 		account_id: Uuid,
 		invitation_id: String,
 	) -> Result<JoinResult, StorageError>;
+
+	// tags
+	async fn create_tag(&self, tag_state: TagState) -> Result<Tag, StorageError>;
+	async fn update_tag(
+		&self,
+		account_id: Uuid,
+		tag_id: Uuid,
+		tag_state: TagState,
+	) -> Result<Tag, StorageError>;
+	async fn apply_tag(
+		&self,
+		account_id: Uuid,
+		tag_id: Uuid,
+		task_id: Uuid,
+	) -> Result<Tag, StorageError>;
+	async fn remove_tag(
+		&self,
+		account_id: Uuid,
+		tag_id: Uuid,
+		task_id: Uuid,
+	) -> Result<(), StorageError>;
+	async fn delete_tag(&self, account_id: Uuid, tag_id: Uuid) -> Result<(), StorageError>;
 }
