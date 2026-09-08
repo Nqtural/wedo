@@ -1,6 +1,6 @@
 use crate::{
 	authorization::AuthenticatedUser,
-	storage::{Storage, StorageError},
+	storage::{AuthError, Storage, StorageError},
 	types::{ListState, TaskState},
 };
 use axum::{
@@ -33,6 +33,17 @@ pub async fn get_overview(
 ) -> impl IntoResponse {
 	match storage.get_list_overview(account_id).await {
 		Ok(lists) => (StatusCode::OK, Json(lists)).into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
+pub async fn join(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(invitation_id): Path<String>,
+) -> impl IntoResponse {
+	match storage.accept_invitation(account_id, invitation_id).await {
+		Ok(join_result) => (StatusCode::OK, Json(join_result)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
@@ -71,6 +82,17 @@ pub async fn delete(
 	}
 }
 
+pub async fn share(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(list_id): Path<Uuid>,
+) -> impl IntoResponse {
+	match storage.create_invitation(account_id, list_id).await {
+		Ok(invitation_id) => (StatusCode::OK, Json(invitation_id)).into_response(),
+		Err(error) => decode_auth_error(error).into_response(),
+	}
+}
+
 pub async fn new_task(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
@@ -95,6 +117,21 @@ pub async fn get_task_overview(
 	match storage.get_task_overview(account_id, list_id).await {
 		Ok(lists) => (StatusCode::OK, Json(lists)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
+fn decode_auth_error(error: AuthError) -> impl IntoResponse {
+	match error {
+		AuthError::Forbidden => StatusCode::FORBIDDEN.into_response(),
+		AuthError::InvalidCredentials => {
+			(StatusCode::UNAUTHORIZED, Json("error: Invalid credentials")).into_response()
+		}
+		AuthError::Storage(error) => decode_storage_error(error).into_response(),
+		AuthError::Hash(_) => (
+			StatusCode::INTERNAL_SERVER_ERROR,
+			Json("error: Failed to hash password"),
+		)
+			.into_response(),
 	}
 }
 

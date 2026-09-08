@@ -5,6 +5,7 @@ import Login from "../views/Login.vue";
 import CreateAccount from "../views/CreateAccount.vue";
 import Lists from "../views/Lists.vue";
 import List from "../views/List.vue";
+import Join from "../views/Join.vue";
 
 const router = createRouter({
 	history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,6 +14,12 @@ const router = createRouter({
 			path: "/create-account",
 			name: "CreateAccount",
 			component: CreateAccount,
+		},
+		{
+			path: "/join/:code",
+			name: "Join",
+			component: Join,
+			meta: { requiresAuth: true },
 		},
 		{
 			path: "/login",

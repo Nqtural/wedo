@@ -2,12 +2,16 @@
 import { ref, onMounted } from "vue";
 import { apiFetch } from "@/api";
 
+import Button from "./Button.vue";
 import EditModal from "./EditModal.vue";
+import LinkCopy from "./LinkCopy.vue";
 
 interface List {
 	id: string;
 	name: string;
 }
+
+const origin = window.location.origin;
 
 const props = defineProps<{
 	listId: string | null;
@@ -28,6 +32,7 @@ const list = ref<List | null>(
 );
 const loading = ref(true);
 const error = ref<string | null>(null);
+const invitationCode = ref<string | null>(null);
 
 onMounted(async () => {
 	if (props.create) {
@@ -87,6 +92,15 @@ async function deleteList() {
 
 	emit("close");
 }
+
+async function getShareLink() {
+	invitationCode.value = await apiFetch<string>(
+		`/lists/${props.listId}/share`,
+		{
+			method: "POST",
+		},
+	);
+}
 </script>
 
 <template>
@@ -100,5 +114,12 @@ async function deleteList() {
 	>
 		<label>Name</label>
 		<input v-if="list" v-model="list.name" type="text" />
+		<LinkCopy
+			:hidden="invitationCode === null"
+			:link="`${origin}/join/${invitationCode}`"
+		/>
+		<template v-if="!create" #extra-buttons>
+			<Button @click="getShareLink()" variant="primary">Share</Button>
+		</template>
 	</EditModal>
 </template>
