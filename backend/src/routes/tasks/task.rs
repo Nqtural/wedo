@@ -93,11 +93,11 @@ pub async fn new_tag(
 	Path(task_id): Path<Uuid>,
 	Json(request): Json<TagState>,
 ) -> impl IntoResponse {
-	match storage.create_tag(request).await {
-		Ok(tag) => match storage.apply_tag(account_id, tag.id, task_id).await {
-			Ok(tag) => (StatusCode::CREATED, Json(tag)).into_response(),
-			Err(error) => decode_storage_error(error).into_response(),
-		},
+	match storage
+		.create_and_apply_tag(account_id, task_id, request)
+		.await
+	{
+		Ok(tag) => (StatusCode::OK, Json(tag)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }

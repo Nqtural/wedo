@@ -788,24 +788,59 @@ impl Storage for SqliteStorage {
 		})
 	}
 
-	async fn create_tag(&self, state: TagState) -> Result<Tag, StorageError> {
-		let id = Uuid::new_v4();
-		let id_string = id.to_string();
+	async fn create_and_apply_tag(
+		&self,
+		account_id: Uuid,
+		task_id: Uuid,
+		state: TagState,
+	) -> Result<Tag, StorageError> {
+		let account_id_string = account_id.to_string();
+		let task_id_string = task_id.to_string();
 
-		sqlx::query!(
+		let tag_id = Uuid::new_v4();
+		let tag_id_string = tag_id.to_string();
+
+		let mut tx = self.pool.begin().await.map_err(StorageError::Database)?;
+
+		let result = sqlx::query!(
 			r#"
-			INSERT INTO tags (id, name, color_key)
-			VALUES (?, ?, ?)
+			INSERT INTO tags (id, list_id, name, color_key)
+			SELECT ?, t.list_id, ?, ?
+			FROM tasks t
+			INNER JOIN list_membership lm
+				ON lm.list_id = t.list_id
+			WHERE t.id = ?
+			AND lm.user_id = ?
 			"#,
-			id_string,
+			tag_id_string,
 			state.name,
 			state.color_key,
+			task_id_string,
+			account_id_string,
 		)
-		.execute(&self.pool)
+		.execute(&mut *tx)
 		.await
 		.map_err(StorageError::Database)?;
 
-		Ok(Tag { id, state })
+		if result.rows_affected() == 0 {
+			return Err(StorageError::NotFound);
+		}
+
+		sqlx::query!(
+			r#"
+			INSERT INTO task_tags (task_id, tag_id)
+			VALUES (?, ?)
+			"#,
+			task_id_string,
+			tag_id_string,
+		)
+		.execute(&mut *tx)
+		.await
+		.map_err(StorageError::Database)?;
+
+		tx.commit().await.map_err(StorageError::Database)?;
+
+		Ok(Tag { id: tag_id, state })
 	}
 
 	async fn update_tag(
@@ -814,6 +849,7 @@ impl Storage for SqliteStorage {
 		tag_id: Uuid,
 		tag_state: TagState,
 	) -> Result<Tag, StorageError> {
+		let account_id_string = account_id.to_string();
 		let tag_id_string = tag_id.to_string();
 
 		let result = sqlx::query!(
@@ -821,10 +857,17 @@ impl Storage for SqliteStorage {
 			UPDATE tags
 			SET name = ?, color_key = ?
 			WHERE id = ?
-		    "#,
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership lm
+				WHERE lm.list_id = tags.list_id
+				AND lm.user_id = ?
+			)
+			"#,
 			tag_state.name,
 			tag_state.color_key,
 			tag_id_string,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
@@ -843,20 +886,37 @@ impl Storage for SqliteStorage {
 		tag_id: Uuid,
 		task_id: Uuid,
 	) -> Result<Tag, StorageError> {
+		let account_id_string = account_id.to_string();
 		let tag_id_string = tag_id.to_string();
 		let task_id_string = task_id.to_string();
 
-		sqlx::query!(
+		let result = sqlx::query!(
 			r#"
 			INSERT INTO task_tags (task_id, tag_id)
-			VALUES (?, ?)
+			SELECT t.id, tg.id
+			FROM tasks t
+			INNER JOIN tags tg
+				ON tg.list_id = t.list_id
+			WHERE t.id = ?
+			AND tg.id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership lm
+				WHERE lm.list_id = t.list_id
+				AND lm.user_id = ?
+			)
 			"#,
 			task_id_string,
 			tag_id_string,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
 		.map_err(StorageError::Database)?;
+
+		if result.rows_affected() == 0 {
+			return Err(StorageError::NotFound);
+		}
 
 		self.get_tag(&tag_id_string).await
 	}
@@ -867,16 +927,28 @@ impl Storage for SqliteStorage {
 		tag_id: Uuid,
 		task_id: Uuid,
 	) -> Result<(), StorageError> {
+		let account_id_string = account_id.to_string();
 		let tag_id_string = tag_id.to_string();
 		let task_id_string = task_id.to_string();
 
 		let result = sqlx::query!(
 			r#"
 			DELETE FROM task_tags
-			WHERE task_id = ? AND tag_id = ?
+			WHERE task_id = ?
+			AND tag_id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM tasks t
+				INNER JOIN list_membership lm
+					ON lm.list_id = t.list_id
+				WHERE t.id = ?
+				AND lm.user_id = ?
+			)
 			"#,
 			task_id_string,
 			tag_id_string,
+			task_id_string,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
@@ -890,14 +962,22 @@ impl Storage for SqliteStorage {
 	}
 
 	async fn delete_tag(&self, account_id: Uuid, tag_id: Uuid) -> Result<(), StorageError> {
+		let account_id_string = account_id.to_string();
 		let tag_id_string = tag_id.to_string();
 
 		let result = sqlx::query!(
 			r#"
-	        DELETE FROM tags
-	        WHERE id = ?
-	        "#,
+			DELETE FROM tags
+			WHERE id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership lm
+				WHERE lm.list_id = tags.list_id
+				AND lm.user_id = ?
+			)
+			"#,
 			tag_id_string,
+			account_id_string,
 		)
 		.execute(&self.pool)
 		.await
