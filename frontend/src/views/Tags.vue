@@ -92,6 +92,7 @@ async function startEditing(tag: Tag) {
 		return;
 	}
 
+	tag.state.name = normalizeTagName(tag.state.name);
 	editingTag.value = tag.id;
 	editingTagPreviousState.value = {
 		name: tag.state.name,
@@ -118,6 +119,7 @@ function pickColor(tagState: TagState, color_key: string) {
 }
 
 async function saveTag(tag: Tag) {
+	tag.state.name = normalizeTagName(tag.state.name);
 	await apiFetch(`/tags/${tag.id}`, {
 		method: "PUT",
 		body: JSON.stringify(tag.state),
@@ -126,7 +128,6 @@ async function saveTag(tag: Tag) {
 }
 
 async function createTag() {
-	// TODO: validate format
 	await apiFetch(`/lists/${listId}/tags`, {
 		method: "POST",
 		body: JSON.stringify(createTagState.value),
@@ -139,6 +140,25 @@ function tagColor(color_key: string) {
 	return {
 		"--tag-color": `var(${tagColors[color_key] ?? "--color-primary"})`,
 	};
+}
+
+function formatTagName(event: Event, tagState: TagState) {
+	const input = event.target as HTMLInputElement;
+
+	tagState.name = input.value
+		.toLowerCase()
+		.replace(/\s+/g, "-")
+		.replace(/[^a-z0-9-]/g, "")
+		.replace(/-+/g, "-");
+}
+
+function normalizeTagName(name: string) {
+	return name
+		.toLowerCase()
+		.replace(/\s+/g, "-")
+		.replace(/[^a-z0-9-]/g, "")
+		.replace(/-+/g, "-")
+		.replace(/^-+|-+$/g, "");
 }
 </script>
 
@@ -157,8 +177,9 @@ function tagColor(color_key: string) {
 						v-if="editingTag === tag.id"
 						v-model="tag.state.name"
 						class="edit"
+						@input="formatTagName($event, tag.state)"
 					/>
-					<span v-else>{{ tag.state.name }}</span>
+					<span v-else>{{ normalizeTagName(tag.state.name) }}</span>
 				</td>
 				<td>
 					<div v-if="editingTag === tag.id" class="edit-color">
@@ -195,7 +216,10 @@ function tagColor(color_key: string) {
 						v-else-if="editingTag === tag.id"
 						class="button-wrapper"
 					>
-						<Button @click="saveTag(tag)" variant="success"
+						<Button
+							@click="saveTag(tag)"
+							variant="success"
+							normalizeTag();
 							>Save</Button
 						>
 						<Button @click="cancelEditing(tag)" variant="primary"
@@ -218,6 +242,7 @@ function tagColor(color_key: string) {
 						type="text"
 						placeholder="new-tag..."
 						v-model="createTagState.name"
+						@input="formatTagName($event, createTagState)"
 					/>
 				</td>
 				<td>
