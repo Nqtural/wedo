@@ -4,11 +4,20 @@ defineProps<{
 	color: Record<string, string>;
 	applied: boolean;
 }>();
+
+function normalizeTagName(name: string) {
+	return name
+		.toLowerCase()
+		.replace(/\s+/g, "-")
+		.replace(/[^a-z0-9-]/g, "")
+		.replace(/-+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
 </script>
 
 <template>
 	<div class="tags__pill" :class="{ applied: applied }" :style="color">
-		<p>#{{ name }}</p>
+		<p>#{{ normalizeTagName(name) }}</p>
 	</div>
 </template>
 
