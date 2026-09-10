@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { apiFetch } from "@/api";
 import {
 	formatTagName,
@@ -14,6 +14,7 @@ import {
 import Button from "../components/Button.vue";
 
 const route = useRoute();
+const router = useRouter();
 
 interface ListOverview {
 	id: string;
@@ -234,6 +235,7 @@ async function createTag() {
 			</tr>
 		</table>
 	</div>
+	<Button variant="primary" @click="router.back()">Back</Button>
 </template>
 
 <style scoped>
@@ -353,5 +355,11 @@ async function createTag() {
 			}
 		}
 	}
+}
+
+.wrapper ~ button {
+	position: absolute;
+	bottom: 20px;
+	left: 20px;
 }
 </style>

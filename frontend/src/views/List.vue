@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiFetch } from "@/api";
 import { type Tag, tagColor } from "@/tag";
-
-const router = useRouter();
 
 import Button from "../components/Button.vue";
 import Checkbox from "../components/Checkbox.vue";
@@ -16,7 +14,16 @@ import ListItemActions from "../components/ListItemActions.vue";
 import TagPill from "../components/TagPill.vue";
 
 const route = useRoute();
+const router = useRouter();
 const listId = route.params.id;
+
+const selectedTaskId = computed(() => {
+	return typeof route.query.edit === "string" ? route.query.edit : null;
+});
+
+const creatingTask = computed(() => {
+	return route.query.create === "true";
+});
 
 interface Task {
 	id: string;
@@ -28,8 +35,6 @@ interface Task {
 
 const taskList = ref<Task[]>([]);
 const listName = ref<string>("");
-const selectedTaskId = ref<string | null>(null);
-const creatingTask = ref(false);
 const expandedTaskId = ref<string | null>(null);
 
 async function getTasks() {
@@ -63,15 +68,38 @@ function updateTaskInList(updatedTask: Task) {
 	}
 }
 
-function newTask() {
-	creatingTask.value = true;
+function editTask(taskId: string) {
+	router.push({
+		name: "List",
+		params: {
+			id: listId,
+		},
+		query: {
+			edit: taskId,
+		},
+	});
 }
 
-async function closeTask() {
-	selectedTaskId.value = null;
-	creatingTask.value = false;
+function newTask() {
+	router.push({
+		name: "List",
+		params: {
+			id: listId,
+		},
+		query: {
+			create: "true",
+		},
+	});
+}
 
-	await getTasks();
+function closeTask() {
+	router.replace({
+		name: "List",
+		params: {
+			id: listId,
+		},
+		query: {},
+	});
 }
 
 async function toggleExpandTask(task: Task) {
@@ -118,7 +146,7 @@ async function toggleExpandTask(task: Task) {
 					<Button
 						type="button"
 						variant="primary"
-						@click.stop="selectedTaskId = task.id"
+						@click.stop="editTask(task.id)"
 					>
 						Edit
 					</Button>

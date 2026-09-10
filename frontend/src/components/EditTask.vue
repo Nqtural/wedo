@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { apiFetch } from "@/api";
 import { type Tag, tagColor, tagColors } from "@/tag";
 
@@ -7,6 +8,10 @@ import Button from "../components/Button.vue";
 import Checkbox from "../components/Checkbox.vue";
 import EditModal from "../components/EditModal.vue";
 import TagPill from "../components/TagPill.vue";
+
+const router = useRouter();
+
+const selectedTaskId = ref<string | null>(null);
 
 interface TaskDetails {
 	id: string;
@@ -152,6 +157,16 @@ function tagApplied(tag_id: string) {
 	}
 
 	return false;
+}
+
+function manageTags() {
+	router.push({
+		name: "Tags",
+		params: {
+			id: props.listId,
+		},
+		query: props.taskId ? { edit: props.taskId } : { create: "true" },
+	});
 }
 </script>
 
