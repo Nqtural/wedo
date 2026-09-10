@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiFetch } from "@/api";
+import { type Tag, tagColor } from "@/tag";
 
 const router = useRouter();
 
@@ -12,20 +13,10 @@ import Header from "../components/Header.vue";
 import ListPage from "../components/ListPage.vue";
 import ListItem from "../components/ListItem.vue";
 import ListItemActions from "../components/ListItemActions.vue";
-import Tag from "../components/Tag.vue";
+import TagPill from "../components/TagPill.vue";
 
 const route = useRoute();
 const listId = route.params.id;
-
-interface TagState {
-	name: string;
-	color_key: string;
-}
-
-interface Tag {
-	id: string;
-	state: TagState;
-}
 
 interface Task {
 	id: string;
@@ -34,17 +25,6 @@ interface Task {
 	completed: boolean;
 	tags: Tag[];
 }
-
-const tagColors: Record<string, string> = {
-	red: "--red",
-	orange: "--orange",
-	yellow: "--yellow",
-	green: "--green",
-	teal: "--teal",
-	blue: "--blue",
-	purple: "--purple",
-	pink: "--pink",
-};
 
 const taskList = ref<Task[]>([]);
 const listName = ref<string>("");
@@ -115,12 +95,6 @@ async function toggleExpandTask(task: Task) {
 
 	expandedTaskId.value = task.id;
 }
-
-function tagColor(color_key: string) {
-	return {
-		"--tag-color": `var(${tagColors[color_key] ?? "--color-primary"})`,
-	};
-}
 </script>
 
 <template>
@@ -179,7 +153,7 @@ function tagColor(color_key: string) {
 						No description
 					</p>
 					<div class="tags-expanded">
-						<Tag
+						<TagPill
 							v-for="tag in task.tags"
 							:name="tag.state.name"
 							:color="tagColor(tag.state.color_key)"

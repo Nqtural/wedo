@@ -2,6 +2,14 @@
 import { nextTick, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { apiFetch } from "@/api";
+import {
+	formatTagName,
+	normalizeTagName,
+	type Tag,
+	type TagState,
+	tagColor,
+	tagColors,
+} from "@/tag";
 
 import Button from "../components/Button.vue";
 
@@ -11,27 +19,6 @@ interface ListOverview {
 	id: string;
 	name: string;
 }
-
-interface TagState {
-	name: string;
-	color_key: string;
-}
-
-interface Tag {
-	id: string;
-	state: TagState;
-}
-
-const tagColors: Record<string, string> = {
-	red: "--red",
-	orange: "--orange",
-	yellow: "--yellow",
-	green: "--green",
-	teal: "--teal",
-	blue: "--blue",
-	purple: "--purple",
-	pink: "--pink",
-};
 
 const listOverview = ref<ListOverview>();
 const tags = ref<Tag[]>();
@@ -134,31 +121,6 @@ async function createTag() {
 	});
 	await updateTags();
 	createTagState.value = createTagStateDefault();
-}
-
-function tagColor(color_key: string) {
-	return {
-		"--tag-color": `var(${tagColors[color_key] ?? "--color-primary"})`,
-	};
-}
-
-function formatTagName(event: Event, tagState: TagState) {
-	const input = event.target as HTMLInputElement;
-
-	tagState.name = input.value
-		.toLowerCase()
-		.replace(/\s+/g, "-")
-		.replace(/[^a-z0-9-]/g, "")
-		.replace(/-+/g, "-");
-}
-
-function normalizeTagName(name: string) {
-	return name
-		.toLowerCase()
-		.replace(/\s+/g, "-")
-		.replace(/[^a-z0-9-]/g, "")
-		.replace(/-+/g, "-")
-		.replace(/^-+|-+$/g, "");
 }
 </script>
 
