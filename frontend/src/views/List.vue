@@ -5,23 +5,46 @@ import { apiFetch } from "@/api";
 
 const router = useRouter();
 
+import Button from "../components/Button.vue";
 import Checkbox from "../components/Checkbox.vue";
 import EditTask from "../components/EditTask.vue";
 import Header from "../components/Header.vue";
-import Button from "../components/Button.vue";
 import ListPage from "../components/ListPage.vue";
 import ListItem from "../components/ListItem.vue";
 import ListItemActions from "../components/ListItemActions.vue";
+import Tag from "../components/Tag.vue";
 
 const route = useRoute();
 const listId = route.params.id;
+
+interface TagState {
+	name: string;
+	color_key: string;
+}
+
+interface Tag {
+	id: string;
+	state: TagState;
+}
 
 interface Task {
 	id: string;
 	name: string;
 	description?: string;
 	completed: boolean;
+	tags: Tag[];
 }
+
+const tagColors: Record<string, string> = {
+	red: "--red",
+	orange: "--orange",
+	yellow: "--yellow",
+	green: "--green",
+	teal: "--teal",
+	blue: "--blue",
+	purple: "--purple",
+	pink: "--pink",
+};
 
 const taskList = ref<Task[]>([]);
 const listName = ref<string>("");
@@ -92,6 +115,12 @@ async function toggleExpandTask(task: Task) {
 
 	expandedTaskId.value = task.id;
 }
+
+function tagColor(color_key: string) {
+	return {
+		"--tag-color": `var(${tagColors[color_key] ?? "--color-primary"})`,
+	};
+}
 </script>
 
 <template>
@@ -129,14 +158,35 @@ async function toggleExpandTask(task: Task) {
 					/>
 				</template>
 			</ListItemActions>
+			<Transition name="fade">
+				<div v-if="task.id !== expandedTaskId" class="tags">
+					<span
+						v-for="tag in task.tags"
+						:style="tagColor(tag.state.color_key)"
+					></span>
+				</div>
+			</Transition>
 
-			<template v-if="task.description" #expanded>
-				<p class="task__description">{{ task.description }}</p>
-			</template>
-			<template v-else #expanded>
-				<p class="task__description task__description--empty">
-					No description
-				</p>
+			<template #expanded>
+				<div class="expanded-wrapper">
+					<p v-if="task.description" class="task__description">
+						{{ task.description }}
+					</p>
+					<p
+						v-else
+						class="task__description task__description--empty"
+					>
+						No description
+					</p>
+					<div class="tags-expanded">
+						<Tag
+							v-for="tag in task.tags"
+							:name="tag.state.name"
+							:color="tagColor(tag.state.color_key)"
+							:applied="true"
+						/>
+					</div>
+				</div>
 			</template>
 		</ListItem>
 
@@ -157,6 +207,50 @@ async function toggleExpandTask(task: Task) {
 </template>
 
 <style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition: opacity var(--transition-fast);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+	opacity: 1;
+}
+
+.tags {
+	position: absolute;
+	bottom: 10px;
+	left: 10px;
+	font-size: 12px;
+	display: flex;
+	gap: 3px;
+
+	& span {
+		display: inline-block;
+		height: 3px;
+		width: 10px;
+		border-radius: 9999px;
+		background-color: var(--tag-color);
+	}
+}
+
+.tags-expanded {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin-top: auto;
+}
+
+.expanded-wrapper {
+	display: flex;
+	flex-direction: column;
+}
+
 .task {
 	display: flex;
 	align-items: center;

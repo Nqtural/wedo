@@ -60,6 +60,15 @@
 	--color-danger: var(--red);
 	--color-info: var(--blue);
 
+	/* --red: var(--red); */
+	--orange: var(--peach);
+	/* --yellow: var(--yellow); */
+	/* --green: var(--green); */
+	/* --teal: var(--teal); */
+	/* --blue: var(--blue); */
+	--purple: var(--mauve);
+	/* --pink: var(--pink); */
+
 	/* ─────────────────────────────────────────────
 	   UI
 	   ───────────────────────────────────────────── */

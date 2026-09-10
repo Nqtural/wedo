@@ -13,16 +13,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
-// pub async fn get_overview(
-// 	State(storage): State<Arc<dyn Storage>>,
-// 	Path(list_id): Path<Uuid>,
-// ) -> impl IntoResponse {
-// 	match storage.get_task_overview(list_id).await {
-// 		Ok(lists) => (StatusCode::OK, Json(lists)).into_response(),
-// 		Err(error) => decode_storage_error(error).into_response(),
-// 	}
-// }
-
 pub async fn get(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
@@ -83,21 +73,6 @@ pub async fn set_completed(
 			}),
 		)
 			.into_response(),
-		Err(error) => decode_storage_error(error).into_response(),
-	}
-}
-
-pub async fn new_tag(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
-	State(storage): State<Arc<dyn Storage>>,
-	Path(task_id): Path<Uuid>,
-	Json(request): Json<TagState>,
-) -> impl IntoResponse {
-	match storage
-		.create_and_apply_tag(account_id, task_id, request)
-		.await
-	{
-		Ok(tag) => (StatusCode::OK, Json(tag)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
