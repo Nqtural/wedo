@@ -100,7 +100,7 @@ async function toggleExpandTask(task: Task) {
 		return;
 	}
 
-	if (task.description === null) {
+	if (!task.description) {
 		task.description = (
 			await apiFetch<{
 				id: string;
