@@ -1,18 +1,11 @@
 <script setup lang="ts">
+import { normalizeTagName } from "@/tag";
+
 defineProps<{
 	name: string;
 	color: Record<string, string>;
 	applied: boolean;
 }>();
-
-function normalizeTagName(name: string) {
-	return name
-		.toLowerCase()
-		.replace(/\s+/g, "-")
-		.replace(/[^a-z0-9-]/g, "")
-		.replace(/-+/g, "-")
-		.replace(/^-+|-+$/g, "");
-}
 </script>
 
 <template>

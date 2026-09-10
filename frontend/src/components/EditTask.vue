@@ -1,21 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { apiFetch } from "@/api";
+import { type Tag, tagColor, tagColors } from "@/tag";
 
 import Button from "../components/Button.vue";
 import Checkbox from "../components/Checkbox.vue";
 import EditModal from "../components/EditModal.vue";
-import Tag from "../components/Tag.vue";
-
-interface TagState {
-	name: string;
-	color_key: string;
-}
-
-interface Tag {
-	id: string;
-	state: TagState;
-}
+import TagPill from "../components/TagPill.vue";
 
 interface TaskDetails {
 	id: string;
@@ -52,17 +43,6 @@ const filteredTags = computed(() => {
 		.filter((tag) => tag.state.name.toLowerCase().includes(query))
 		.slice(0, 5);
 });
-
-const tagColors: Record<string, string> = {
-	red: "--red",
-	orange: "--orange",
-	yellow: "--yellow",
-	green: "--green",
-	teal: "--teal",
-	blue: "--blue",
-	purple: "--purple",
-	pink: "--pink",
-};
 
 const task = ref<TaskDetails>();
 const loading = ref(true);
@@ -166,12 +146,6 @@ function toggleTag(tag: Tag) {
 	task.value?.state.tags.push(tag);
 }
 
-function tagColor(color_key: string) {
-	return {
-		"--tag-color": `var(${tagColors[color_key] ?? "--color-primary"})`,
-	};
-}
-
 function tagApplied(tag_id: string) {
 	if (task.value) {
 		return task.value.state.tags.some((tag) => tag.id === tag_id);
@@ -209,7 +183,7 @@ function tagApplied(tag_id: string) {
 		<h3>Tags</h3>
 		<div class="tagging">
 			<div class="tags">
-				<Tag
+				<TagPill
 					v-for="tag in availableTags"
 					:key="tag.id"
 					:color="tagColor(tag.state.color_key)"
