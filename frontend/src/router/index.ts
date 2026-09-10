@@ -1,11 +1,12 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { TOKEN_KEY } from "@/auth";
 
-import Login from "../views/Login.vue";
 import CreateAccount from "../views/CreateAccount.vue";
-import Lists from "../views/Lists.vue";
-import List from "../views/List.vue";
 import Join from "../views/Join.vue";
+import List from "../views/List.vue";
+import Lists from "../views/Lists.vue";
+import Login from "../views/Login.vue";
+import Tags from "../views/Tags.vue";
 
 const router = createRouter({
 	history: createWebHistory(import.meta.env.BASE_URL),
@@ -38,7 +39,12 @@ const router = createRouter({
 			component: List,
 			meta: { requiresAuth: true },
 		},
-
+		{
+			path: "/lists/:id/tags",
+			name: "Tags",
+			component: Tags,
+			meta: { requiresAuth: true },
+		},
 		{
 			path: "/:pathMatch(.*)*",
 			redirect: "/lists",

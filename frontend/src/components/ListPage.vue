@@ -125,7 +125,7 @@ ul {
 	left: 0;
 	right: 0;
 	height: 5px;
-	z-index: 10;
+	z-index: 1;
 	pointer-events: none;
 	opacity: 0;
 	transition: opacity var(--transition-fast);

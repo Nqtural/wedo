@@ -443,6 +443,36 @@ impl Storage for SqliteStorage {
 		let account_id_string = account_id.to_string();
 		let task_id_string = task_id.to_string();
 
+		let mut tx = self.pool.begin().await.map_err(StorageError::Database)?;
+
+		sqlx::query!(
+			r#"
+			DELETE FROM task_tags
+			WHERE task_id = ?
+			"#,
+			task_id_string,
+		)
+		.execute(&mut *tx)
+		.await
+		.map_err(StorageError::Database)?;
+
+		for tag_id in state.tags.iter().map(|t| t.id).collect::<Vec<_>>() {
+			let tag_id_string = tag_id.to_string();
+
+			sqlx::query!(
+				r#"
+				INSERT INTO task_tags (task_id, tag_id)
+				VALUES (?, ?)
+				ON CONFLICT (task_id, tag_id) DO NOTHING;
+				"#,
+				task_id_string,
+				tag_id_string,
+			)
+			.execute(&mut *tx)
+			.await
+			.map_err(StorageError::Database)?;
+		}
+
 		let result = sqlx::query!(
 			r#"
 			UPDATE tasks
@@ -461,13 +491,15 @@ impl Storage for SqliteStorage {
 			task_id_string,
 			account_id_string,
 		)
-		.execute(&self.pool)
+		.execute(&mut *tx)
 		.await
 		.map_err(StorageError::Database)?;
 
 		if result.rows_affected() == 0 {
 			return Err(StorageError::NotFound);
 		}
+
+		tx.commit().await.map_err(StorageError::Database)?;
 
 		self.get_task(account_id, task_id).await
 	}
@@ -788,37 +820,37 @@ impl Storage for SqliteStorage {
 		})
 	}
 
-	async fn create_and_apply_tag(
+	async fn create_tag(
 		&self,
 		account_id: Uuid,
-		task_id: Uuid,
+		list_id: Uuid,
 		state: TagState,
 	) -> Result<Tag, StorageError> {
 		let account_id_string = account_id.to_string();
-		let task_id_string = task_id.to_string();
+		let list_id_string = list_id.to_string();
 
 		let tag_id = Uuid::new_v4();
 		let tag_id_string = tag_id.to_string();
 
-		let mut tx = self.pool.begin().await.map_err(StorageError::Database)?;
-
 		let result = sqlx::query!(
 			r#"
 			INSERT INTO tags (id, list_id, name, color_key)
-			SELECT ?, t.list_id, ?, ?
-			FROM tasks t
-			INNER JOIN list_membership lm
-				ON lm.list_id = t.list_id
-			WHERE t.id = ?
-			AND lm.user_id = ?
+			SELECT ?, ?, ?, ?
+			WHERE EXISTS (
+				SELECT 1
+				FROM list_membership
+				WHERE list_id = ?
+				AND user_id = ?
+			)
 			"#,
 			tag_id_string,
+			list_id_string,
 			state.name,
 			state.color_key,
-			task_id_string,
+			list_id_string,
 			account_id_string,
 		)
-		.execute(&mut *tx)
+		.execute(&self.pool)
 		.await
 		.map_err(StorageError::Database)?;
 
@@ -826,21 +858,45 @@ impl Storage for SqliteStorage {
 			return Err(StorageError::NotFound);
 		}
 
-		sqlx::query!(
-			r#"
-			INSERT INTO task_tags (task_id, tag_id)
-			VALUES (?, ?)
-			"#,
-			task_id_string,
-			tag_id_string,
-		)
-		.execute(&mut *tx)
-		.await
-		.map_err(StorageError::Database)?;
-
-		tx.commit().await.map_err(StorageError::Database)?;
-
 		Ok(Tag { id: tag_id, state })
+	}
+
+	async fn get_list_tags(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+	) -> Result<Vec<Tag>, StorageError> {
+		let account_id_string = account_id.to_string();
+		let list_id_string = list_id.to_string();
+
+		let tag_ids = sqlx::query!(
+			r#"
+			SELECT t.id
+			FROM tags t
+			WHERE t.list_id = ?
+			AND EXISTS (
+				SELECT 1
+				FROM list_membership lm
+				WHERE lm.list_id = t.list_id
+				AND lm.user_id = ?
+			)
+			"#,
+			list_id_string,
+			account_id_string,
+		)
+		.fetch_all(&self.pool)
+		.await
+		.map_err(StorageError::Database)?
+		.iter()
+		.map(|r| r.id.clone())
+		.collect::<Vec<_>>();
+
+		let mut tags = Vec::new();
+		for tag_id in tag_ids {
+			tags.push(self.get_tag(&tag_id).await?);
+		}
+
+		Ok(tags)
 	}
 
 	async fn update_tag(

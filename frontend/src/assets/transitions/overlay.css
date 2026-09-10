@@ -1,3 +1,7 @@
+.overlay {
+	z-index: 2;
+}
+
 .overlay-enter-active,
 .overlay-leave-active {
 	transition: opacity var(--transition-slow);

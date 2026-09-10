@@ -1,7 +1,7 @@
 use crate::{
 	authorization::AuthenticatedUser,
 	storage::{AuthError, Storage, StorageError},
-	types::{ListState, TaskState},
+	types::{ListState, TagState, TaskState},
 };
 use axum::{
 	Json,
@@ -90,6 +90,29 @@ pub async fn share(
 	match storage.create_invitation(account_id, list_id).await {
 		Ok(invitation_id) => (StatusCode::OK, Json(invitation_id)).into_response(),
 		Err(error) => decode_auth_error(error).into_response(),
+	}
+}
+
+pub async fn get_tags(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(list_id): Path<Uuid>,
+) -> impl IntoResponse {
+	match storage.get_list_tags(account_id, list_id).await {
+		Ok(tags) => (StatusCode::OK, Json(tags)).into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
+pub async fn new_tag(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(list_id): Path<Uuid>,
+	Json(request): Json<TagState>,
+) -> impl IntoResponse {
+	match storage.create_tag(account_id, list_id, request).await {
+		Ok(_) => StatusCode::CREATED.into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 

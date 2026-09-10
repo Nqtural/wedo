@@ -1,9 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { apiFetch } from "@/api";
 
+import Button from "../components/Button.vue";
 import Checkbox from "../components/Checkbox.vue";
 import EditModal from "../components/EditModal.vue";
+import Tag from "../components/Tag.vue";
+
+interface TagState {
+	name: string;
+	color_key: string;
+}
+
+interface Tag {
+	id: string;
+	state: TagState;
+}
 
 interface TaskDetails {
 	id: string;
@@ -11,6 +23,7 @@ interface TaskDetails {
 		name: string;
 		description: string;
 		completed: boolean;
+		tags: Tag[];
 	};
 }
 
@@ -24,35 +37,75 @@ const emit = defineEmits<{
 	close: [];
 }>();
 
-const task = ref<TaskDetails | null>(
-	props.create
-		? {
-				id: "",
-				state: {
-					name: "",
-					description: "",
-					completed: false,
-				},
-			}
-		: null,
-);
+const availableTags = ref<Tag[]>([]);
+const addingTag = ref(false);
+const tagInput = ref("");
+
+const filteredTags = computed(() => {
+	const query = tagInput.value.trim().toLowerCase();
+	const appliedTagIds = new Set(
+		task.value?.state.tags.map((tag) => tag.id) ?? [],
+	);
+
+	return (availableTags.value ?? [])
+		.filter((tag) => !appliedTagIds.has(tag.id))
+		.filter((tag) => tag.state.name.toLowerCase().includes(query))
+		.slice(0, 5);
+});
+
+const tagColors: Record<string, string> = {
+	red: "--red",
+	orange: "--orange",
+	yellow: "--yellow",
+	green: "--green",
+	teal: "--teal",
+	blue: "--blue",
+	purple: "--purple",
+	pink: "--pink",
+};
+
+const task = ref<TaskDetails>();
 const loading = ref(true);
 const error = ref<string | null>(null);
 
 onMounted(async () => {
 	if (props.create) {
-		loading.value = false;
+		task.value = {
+			id: "",
+			state: {
+				name: "",
+				description: "",
+				completed: false,
+				tags: [],
+			},
+		};
+
+		try {
+			await updateTags();
+		} catch (e) {
+			error.value = e instanceof Error ? e.message : "Unknown error";
+		} finally {
+			loading.value = false;
+		}
+
 		return;
 	}
 
 	try {
 		task.value = await apiFetch<TaskDetails>(`/tasks/${props.taskId}`);
+		await updateTags();
 	} catch (e) {
 		error.value = e instanceof Error ? e.message : "Unknown error";
 	} finally {
 		loading.value = false;
 	}
 });
+
+async function updateTags() {
+	availableTags.value = (
+		await apiFetch<Tag[]>(`/lists/${props.listId}/tags`)
+	).sort((a, b) => a.state.name.localeCompare(b.state.name));
+}
 
 async function saveTask() {
 	if (!task.value) return;
@@ -69,11 +122,7 @@ async function createTask() {
 
 	await apiFetch(`/lists/${props.listId}/tasks`, {
 		method: "POST",
-		body: JSON.stringify({
-			name: task.value.state.name,
-			description: task.value.state.description,
-			completed: task.value.state.completed,
-		}),
+		body: JSON.stringify(task.value.state),
 	});
 
 	emit("close");
@@ -84,11 +133,7 @@ async function updateTask() {
 
 	await apiFetch(`/tasks/${props.taskId}`, {
 		method: "PUT",
-		body: JSON.stringify({
-			name: task.value.state.name,
-			description: task.value.state.description,
-			completed: task.value.state.completed,
-		}),
+		body: JSON.stringify(task.value.state),
 	});
 
 	emit("close");
@@ -101,6 +146,39 @@ async function deleteTask() {
 
 	emit("close");
 }
+
+function removeTag(tag_id: string) {
+	if (!task.value) {
+		return;
+	}
+
+	task.value.state.tags = task.value?.state.tags.filter(
+		(tag) => tag.id !== tag_id,
+	);
+}
+
+function toggleTag(tag: Tag) {
+	if (tagApplied(tag.id)) {
+		removeTag(tag.id);
+		return;
+	}
+
+	task.value?.state.tags.push(tag);
+}
+
+function tagColor(color_key: string) {
+	return {
+		"--tag-color": `var(${tagColors[color_key] ?? "--color-primary"})`,
+	};
+}
+
+function tagApplied(tag_id: string) {
+	if (task.value) {
+		return task.value.state.tags.some((tag) => tag.id === tag_id);
+	}
+
+	return false;
+}
 </script>
 
 <template>
@@ -108,7 +186,7 @@ async function deleteTask() {
 		:create="create"
 		:loading="loading"
 		:error="error"
-		title="Edit task"
+		title="Create task"
 		@close="emit('close')"
 		@save="saveTask"
 		@delete="deleteTask"
@@ -127,13 +205,52 @@ async function deleteTask() {
 			/>
 			Completed
 		</label>
+
+		<h3>Tags</h3>
+		<div class="tagging">
+			<div class="tags">
+				<Tag
+					v-for="tag in availableTags"
+					:key="tag.id"
+					:color="tagColor(tag.state.color_key)"
+					:name="tag.state.name"
+					:applied="tagApplied(tag.id)"
+					@click="toggleTag(tag)"
+				/>
+			</div>
+			<RouterLink :to="`/lists/${listId}/tags`">Manage tags</RouterLink>
+		</div>
 	</EditModal>
 </template>
 
 <style scoped>
-.checkbox {
-	height: 35px;
-	aspect-ratio: 1/1;
-	display: inline-flex;
+h3 {
+	margin: 0;
+}
+
+.tagging {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+
+	.tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 5px;
+
+		& > * {
+			cursor: pointer;
+		}
+	}
+}
+
+a {
+	color: var(--color-primary);
+	text-decoration: none;
+	width: fit-content;
+
+	&:hover {
+		text-decoration: underline;
+	}
 }
 </style>

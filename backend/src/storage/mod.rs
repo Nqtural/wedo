@@ -109,12 +109,17 @@ pub trait Storage: Send + Sync + 'static {
 	) -> Result<JoinResult, StorageError>;
 
 	// tags
-	async fn create_and_apply_tag(
+	async fn create_tag(
 		&self,
 		account_id: Uuid,
-		task_id: Uuid,
+		list_id: Uuid,
 		tag_state: TagState,
 	) -> Result<Tag, StorageError>;
+	async fn get_list_tags(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+	) -> Result<Vec<Tag>, StorageError>;
 	async fn update_tag(
 		&self,
 		account_id: Uuid,

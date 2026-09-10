@@ -15,6 +15,8 @@ pub fn lists() -> Router<Arc<dyn Storage>> {
 		.route("/{list_id}", put(list::rename))
 		.route("/{list_id}", delete(list::delete))
 		.route("/{list_id}/share", post(list::share))
+		.route("/{list_id}/tags", get(list::get_tags))
+		.route("/{list_id}/tags", post(list::new_tag))
 		.route("/{list_id}/tasks", post(list::new_task))
 		.route("/{list_id}/tasks", get(list::get_task_overview))
 }
