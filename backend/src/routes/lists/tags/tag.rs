@@ -12,10 +12,33 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 
+pub async fn get(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(list_id): Path<Uuid>,
+) -> impl IntoResponse {
+	match storage.get_list_tags(account_id, list_id).await {
+		Ok(tags) => (StatusCode::OK, Json(tags)).into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
+pub async fn new(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(list_id): Path<Uuid>,
+	Json(request): Json<TagState>,
+) -> impl IntoResponse {
+	match storage.create_tag(account_id, list_id, request).await {
+		Ok(_) => StatusCode::CREATED.into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
 pub async fn update(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(tag_id): Path<Uuid>,
+	Path((list_id, tag_id)): Path<(Uuid, Uuid)>,
 	Json(request): Json<TagState>,
 ) -> impl IntoResponse {
 	match storage.update_tag(account_id, tag_id, request).await {
@@ -27,7 +50,7 @@ pub async fn update(
 pub async fn delete(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(tag_id): Path<Uuid>,
+	Path((list_id, tag_id)): Path<(Uuid, Uuid)>,
 ) -> impl IntoResponse {
 	match storage.delete_tag(account_id, tag_id).await {
 		Ok(_) => StatusCode::NO_CONTENT.into_response(),

@@ -59,7 +59,7 @@ async function getTaskDescription(taskId: string) {
 				description: string;
 				completed: boolean;
 			};
-		}>(`/tasks/${taskId}`)
+		}>(`/lists/${listId}/tasks/${taskId}`)
 	).state.description;
 }
 
@@ -72,7 +72,7 @@ onMounted(async () => {
 
 async function toggleCompleted(task: Task) {
 	task.completed = (
-		await apiFetch<{ completed: boolean }>(`/tasks/${task.id}/completed`, {
+		await apiFetch<{ completed: boolean }>(`/lists/${listId}/tasks/${task.id}/completed`, {
 			method: "PUT",
 			body: JSON.stringify({ completed: task.completed }),
 		})
