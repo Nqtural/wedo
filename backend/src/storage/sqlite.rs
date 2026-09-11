@@ -331,6 +331,8 @@ impl Storage for SqliteStorage {
 
 		let task = Task { id: task_id, state };
 
+		let mut tx = self.pool.begin().await.map_err(StorageError::Database)?;
+
 		let result = sqlx::query!(
 			r#"
 			INSERT INTO tasks (id, list_id, name, description, completed)
@@ -350,13 +352,17 @@ impl Storage for SqliteStorage {
 			list_id_string,
 			account_id_string,
 		)
-		.execute(&self.pool)
+		.execute(&mut *tx)
 		.await
 		.map_err(StorageError::Database)?;
 
 		if result.rows_affected() == 0 {
 			return Err(StorageError::NotFound);
 		}
+
+		update_task_tags(&task_id_string, &mut tx, &task.state).await?;
+
+		tx.commit().await.map_err(StorageError::Database)?;
 
 		Ok(task)
 	}
@@ -445,33 +451,7 @@ impl Storage for SqliteStorage {
 
 		let mut tx = self.pool.begin().await.map_err(StorageError::Database)?;
 
-		sqlx::query!(
-			r#"
-			DELETE FROM task_tags
-			WHERE task_id = ?
-			"#,
-			task_id_string,
-		)
-		.execute(&mut *tx)
-		.await
-		.map_err(StorageError::Database)?;
-
-		for tag_id in state.tags.iter().map(|t| t.id).collect::<Vec<_>>() {
-			let tag_id_string = tag_id.to_string();
-
-			sqlx::query!(
-				r#"
-				INSERT INTO task_tags (task_id, tag_id)
-				VALUES (?, ?)
-				ON CONFLICT (task_id, tag_id) DO NOTHING;
-				"#,
-				task_id_string,
-				tag_id_string,
-			)
-			.execute(&mut *tx)
-			.await
-			.map_err(StorageError::Database)?;
-		}
+		update_task_tags(&task_id_string, &mut tx, &state).await?;
 
 		let result = sqlx::query!(
 			r#"
@@ -1045,4 +1025,40 @@ impl Storage for SqliteStorage {
 
 		Ok(())
 	}
+}
+
+async fn update_task_tags(
+	task_id_string: &str,
+	tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+	state: &TaskState,
+) -> Result<(), StorageError> {
+	sqlx::query!(
+		r#"
+		DELETE FROM task_tags
+		WHERE task_id = ?
+		"#,
+		task_id_string,
+	)
+	.execute(&mut **tx)
+	.await
+	.map_err(StorageError::Database)?;
+
+	for tag_id in state.tags.iter().map(|t| t.id).collect::<Vec<_>>() {
+		let tag_id_string = tag_id.to_string();
+
+		sqlx::query!(
+			r#"
+			INSERT INTO task_tags (task_id, tag_id)
+			VALUES (?, ?)
+			ON CONFLICT (task_id, tag_id) DO NOTHING;
+			"#,
+			task_id_string,
+			tag_id_string,
+		)
+		.execute(&mut **tx)
+		.await
+		.map_err(StorageError::Database)?;
+	}
+
+	Ok(())
 }
