@@ -93,56 +93,6 @@ pub async fn share(
 	}
 }
 
-pub async fn get_tags(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
-	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
-) -> impl IntoResponse {
-	match storage.get_list_tags(account_id, list_id).await {
-		Ok(tags) => (StatusCode::OK, Json(tags)).into_response(),
-		Err(error) => decode_storage_error(error).into_response(),
-	}
-}
-
-pub async fn new_tag(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
-	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
-	Json(request): Json<TagState>,
-) -> impl IntoResponse {
-	match storage.create_tag(account_id, list_id, request).await {
-		Ok(_) => StatusCode::CREATED.into_response(),
-		Err(error) => decode_storage_error(error).into_response(),
-	}
-}
-
-pub async fn new_task(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
-	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
-	Json(request): Json<TaskState>,
-) -> impl IntoResponse {
-	match storage.create_task(account_id, list_id, request).await {
-		Ok(task) => (StatusCode::CREATED, Json(task)).into_response(),
-		Err(_) => (
-			StatusCode::INTERNAL_SERVER_ERROR,
-			Json("error: Failed to create task"),
-		)
-			.into_response(),
-	}
-}
-
-pub async fn get_task_overview(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
-	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
-) -> impl IntoResponse {
-	match storage.get_task_overview(account_id, list_id).await {
-		Ok(lists) => (StatusCode::OK, Json(lists)).into_response(),
-		Err(error) => decode_storage_error(error).into_response(),
-	}
-}
-
 fn decode_auth_error(error: AuthError) -> impl IntoResponse {
 	match error {
 		AuthError::Forbidden => StatusCode::FORBIDDEN.into_response(),

@@ -75,7 +75,7 @@ async function createTask(taskState: TaskForm) {
 }
 
 async function updateTask(taskState: TaskForm) {
-	await apiFetch(`/tasks/${props.taskId}`, {
+	await apiFetch(`/lists/${props.listId}/tasks/${props.taskId}`, {
 		method: "PUT",
 		body: JSON.stringify(taskState),
 	});
@@ -84,7 +84,7 @@ async function updateTask(taskState: TaskForm) {
 }
 
 async function deleteTask() {
-	await apiFetch(`/tasks/${props.taskId}`, {
+	await apiFetch(`/lists/${props.listId}/tasks/${props.taskId}`, {
 		method: "DELETE",
 	});
 

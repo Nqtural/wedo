@@ -13,10 +13,37 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+pub async fn new(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(list_id): Path<Uuid>,
+	Json(request): Json<TaskState>,
+) -> impl IntoResponse {
+	match storage.create_task(account_id, list_id, request).await {
+		Ok(task) => (StatusCode::CREATED, Json(task)).into_response(),
+		Err(_) => (
+			StatusCode::INTERNAL_SERVER_ERROR,
+			Json("error: Failed to create task"),
+		)
+			.into_response(),
+	}
+}
+
+pub async fn get_tasks_overview(
+	AuthenticatedUser { account_id }: AuthenticatedUser,
+	State(storage): State<Arc<dyn Storage>>,
+	Path(list_id): Path<Uuid>,
+) -> impl IntoResponse {
+	match storage.get_task_overview(account_id, list_id).await {
+		Ok(lists) => (StatusCode::OK, Json(lists)).into_response(),
+		Err(error) => decode_storage_error(error).into_response(),
+	}
+}
+
 pub async fn get(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(task_id): Path<Uuid>,
+	Path((list_id, task_id)): Path<(Uuid, Uuid)>,
 ) -> impl IntoResponse {
 	match storage.get_task(account_id, task_id).await {
 		Ok(list) => (StatusCode::OK, Json(list)).into_response(),
@@ -27,7 +54,7 @@ pub async fn get(
 pub async fn update(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(task_id): Path<Uuid>,
+	Path((list_id, task_id)): Path<(Uuid, Uuid)>,
 	Json(request): Json<TaskState>,
 ) -> impl IntoResponse {
 	match storage.update_task(account_id, task_id, request).await {
@@ -39,7 +66,7 @@ pub async fn update(
 pub async fn delete(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(task_id): Path<Uuid>,
+	Path((list_id, task_id)): Path<(Uuid, Uuid)>,
 ) -> impl IntoResponse {
 	match storage.delete_task(account_id, task_id).await {
 		Ok(_) => StatusCode::NO_CONTENT.into_response(),
@@ -55,7 +82,7 @@ pub struct SetCompleted {
 pub async fn set_completed(
 	AuthenticatedUser { account_id }: AuthenticatedUser,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(task_id): Path<Uuid>,
+	Path((list_id, task_id)): Path<(Uuid, Uuid)>,
 	Json(request): Json<SetCompleted>,
 ) -> impl IntoResponse {
 	let mut task = match storage.get_task(account_id, task_id).await {

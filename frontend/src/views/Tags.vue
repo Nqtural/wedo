@@ -68,7 +68,7 @@ function cancelDeleting() {
 }
 
 async function deleteTag() {
-	await apiFetch(`/tags/${deletingTag.value}`, {
+	await apiFetch(`/lists/${listId}/tags/${deletingTag.value}`, {
 		method: "DELETE",
 	});
 	await updateTags();
@@ -110,7 +110,7 @@ function pickColor(tagState: TagState, color_key: string) {
 
 async function saveTag(tag: Tag) {
 	tag.state.name = normalizeTagName(tag.state.name);
-	await apiFetch(`/tags/${tag.id}`, {
+	await apiFetch(`/lists/${listId}/tags/${tag.id}`, {
 		method: "PUT",
 		body: JSON.stringify(tag.state),
 	});
