@@ -10,9 +10,11 @@ import {
 	tagColor,
 	tagColors,
 } from "@/tag";
+import { useTaskEditorStore } from "@/stores/taskEditor";
 
 import Button from "../components/Button.vue";
 
+const store = useTaskEditorStore();
 const route = useRoute();
 const router = useRouter();
 

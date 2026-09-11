@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiFetch } from "@/api";
 import { type Tag, tagColor } from "@/tag";
+import { useTaskEditorStore } from "@/stores/taskEditor";
 
 import Button from "../components/Button.vue";
 import Checkbox from "../components/Checkbox.vue";
@@ -16,6 +17,7 @@ import TagPill from "../components/TagPill.vue";
 const route = useRoute();
 const router = useRouter();
 const listId = route.params.id;
+const editor = useTaskEditorStore();
 
 const selectedTaskId = computed(() => {
 	return typeof route.query.edit === "string" ? route.query.edit : null;
@@ -39,6 +41,26 @@ const expandedTaskId = ref<string | null>(null);
 
 async function getTasks() {
 	taskList.value = await apiFetch<Task[]>(`/lists/${listId}/tasks`);
+	if (expandedTaskId.value) {
+		const task = taskList.value.find(task => task.id === expandedTaskId.value)
+
+		if (task) {
+			task.description = await getTaskDescription(expandedTaskId.value);
+		}
+	}
+}
+
+async function getTaskDescription(taskId: string) {
+	return (
+		await apiFetch<{
+			id: string;
+			state: {
+				name: string;
+				description: string;
+				completed: boolean;
+			};
+		}>(`/tasks/${taskId}`)
+	).state.description;
 }
 
 onMounted(async () => {
@@ -68,19 +90,30 @@ function updateTaskInList(updatedTask: Task) {
 	}
 }
 
-function editTask(taskId: string) {
+async function editTask(task: Task) {
+	editor.startEdit({
+		id: task.id,
+		listId: String(listId),
+		name: task.name,
+		description: await getTaskDescription(task.id),
+		completed: task.completed,
+		tags: task.tags,
+	});
+
 	router.push({
 		name: "List",
 		params: {
 			id: listId,
 		},
 		query: {
-			edit: taskId,
+			edit: task.id,
 		},
 	});
 }
 
 function newTask() {
+	editor.startCreate(String(listId));
+
 	router.push({
 		name: "List",
 		params: {
@@ -92,7 +125,7 @@ function newTask() {
 	});
 }
 
-function closeTask() {
+async function closeTask() {
 	router.replace({
 		name: "List",
 		params: {
@@ -100,6 +133,8 @@ function closeTask() {
 		},
 		query: {},
 	});
+
+	await getTasks();
 }
 
 async function toggleExpandTask(task: Task) {
@@ -109,16 +144,7 @@ async function toggleExpandTask(task: Task) {
 	}
 
 	if (!task.description) {
-		task.description = (
-			await apiFetch<{
-				id: string;
-				state: {
-					name: string;
-					description: string;
-					completed: boolean;
-				};
-			}>(`/tasks/${task.id}`)
-		).state.description;
+		task.description = await getTaskDescription(task.id);
 	}
 
 	expandedTaskId.value = task.id;
@@ -146,7 +172,7 @@ async function toggleExpandTask(task: Task) {
 					<Button
 						type="button"
 						variant="primary"
-						@click.stop="editTask(task.id)"
+						@click.stop="editTask(task)"
 					>
 						Edit
 					</Button>
