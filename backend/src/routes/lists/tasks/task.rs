@@ -1,7 +1,7 @@
 use crate::{
-	authorization::AuthenticatedUser,
+	authorization::Require,
 	storage::{Storage, StorageError},
-	types::{TagState, TaskState},
+	types::TaskState,
 };
 use axum::{
 	Json,
@@ -14,12 +14,16 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 pub async fn new(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
 	Json(request): Json<TaskState>,
 ) -> impl IntoResponse {
-	match storage.create_task(account_id, list_id, request).await {
+	let access = require.list();
+
+	match storage
+		.create_task(access.account_id, access.list_id, request)
+		.await
+	{
 		Ok(task) => (StatusCode::CREATED, Json(task)).into_response(),
 		Err(_) => (
 			StatusCode::INTERNAL_SERVER_ERROR,
@@ -30,45 +34,58 @@ pub async fn new(
 }
 
 pub async fn get_tasks_overview(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
 ) -> impl IntoResponse {
-	match storage.get_task_overview(account_id, list_id).await {
+	let access = require.list();
+
+	match storage
+		.get_task_overview(access.account_id, access.list_id)
+		.await
+	{
 		Ok(lists) => (StatusCode::OK, Json(lists)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
 pub async fn get(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path((list_id, task_id)): Path<(Uuid, Uuid)>,
+	Path((_list_id, task_id)): Path<(Uuid, Uuid)>,
 ) -> impl IntoResponse {
-	match storage.get_task(account_id, task_id).await {
+	let access = require.list();
+
+	match storage.get_task(access.account_id, task_id).await {
 		Ok(list) => (StatusCode::OK, Json(list)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
 pub async fn update(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path((list_id, task_id)): Path<(Uuid, Uuid)>,
+	Path((_list_id, task_id)): Path<(Uuid, Uuid)>,
 	Json(request): Json<TaskState>,
 ) -> impl IntoResponse {
-	match storage.update_task(account_id, task_id, request).await {
+	let access = require.list();
+
+	match storage
+		.update_task(access.account_id, task_id, request)
+		.await
+	{
 		Ok(list) => (StatusCode::OK, Json(list)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
 pub async fn delete(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path((list_id, task_id)): Path<(Uuid, Uuid)>,
+	Path((_list_id, task_id)): Path<(Uuid, Uuid)>,
 ) -> impl IntoResponse {
-	match storage.delete_task(account_id, task_id).await {
+	let access = require.list();
+
+	match storage.delete_task(access.account_id, task_id).await {
 		Ok(_) => StatusCode::NO_CONTENT.into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
@@ -80,19 +97,24 @@ pub struct SetCompleted {
 }
 
 pub async fn set_completed(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path((list_id, task_id)): Path<(Uuid, Uuid)>,
+	Path((_list_id, task_id)): Path<(Uuid, Uuid)>,
 	Json(request): Json<SetCompleted>,
 ) -> impl IntoResponse {
-	let mut task = match storage.get_task(account_id, task_id).await {
+	let access = require.list();
+
+	let mut task = match storage.get_task(access.account_id, task_id).await {
 		Ok(task) => task,
 		Err(error) => return decode_storage_error(error).into_response(),
 	};
 
 	task.state.completed = request.completed;
 
-	match storage.update_task(account_id, task_id, task.state).await {
+	match storage
+		.update_task(access.account_id, task_id, task.state)
+		.await
+	{
 		Ok(task) => (
 			StatusCode::OK,
 			Json(SetCompleted {
@@ -105,22 +127,26 @@ pub async fn set_completed(
 }
 
 pub async fn apply_tag(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path((task_id, tag_id)): Path<(Uuid, Uuid)>,
+	Path((_list_id, task_id, tag_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> impl IntoResponse {
-	match storage.apply_tag(account_id, tag_id, task_id).await {
+	let access = require.list();
+
+	match storage.apply_tag(access.account_id, tag_id, task_id).await {
 		Ok(tag) => (StatusCode::OK, Json(tag)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
 pub async fn remove_tag(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path((task_id, tag_id)): Path<(Uuid, Uuid)>,
+	Path((_list_id, task_id, tag_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> impl IntoResponse {
-	match storage.remove_tag(account_id, tag_id, task_id).await {
+	let access = require.list();
+
+	match storage.remove_tag(access.account_id, tag_id, task_id).await {
 		Ok(()) => StatusCode::OK.into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
