@@ -1,7 +1,7 @@
 use crate::{
-	authorization::AuthenticatedUser,
+	authorization::Require,
 	storage::{AuthError, Storage, StorageError},
-	types::{ListState, TagState, TaskState},
+	types::ListState,
 };
 use axum::{
 	Json,
@@ -10,13 +10,14 @@ use axum::{
 	response::IntoResponse,
 };
 use std::sync::Arc;
-use uuid::Uuid;
 
 pub async fn new(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
 	Json(request): Json<ListState>,
 ) -> impl IntoResponse {
+	let account_id = require.account_id();
+
 	match storage.create_list(account_id, request).await {
 		Ok(list) => (StatusCode::CREATED, Json(list)).into_response(),
 		Err(_) => (
@@ -28,9 +29,11 @@ pub async fn new(
 }
 
 pub async fn get_overview(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
 ) -> impl IntoResponse {
+	let account_id = require.account_id();
+
 	match storage.get_list_overview(account_id).await {
 		Ok(lists) => (StatusCode::OK, Json(lists)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
@@ -38,56 +41,62 @@ pub async fn get_overview(
 }
 
 pub async fn join(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
 	Path(invitation_id): Path<String>,
 ) -> impl IntoResponse {
+	let account_id = require.account_id();
+
 	match storage.accept_invitation(account_id, invitation_id).await {
 		Ok(join_result) => (StatusCode::OK, Json(join_result)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
-pub async fn get(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
-	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
-) -> impl IntoResponse {
-	match storage.get_list(account_id, list_id).await {
+pub async fn get(require: Require, State(storage): State<Arc<dyn Storage>>) -> impl IntoResponse {
+	let access = require.list();
+
+	match storage.get_list(access.account_id, access.list_id).await {
 		Ok(list) => (StatusCode::OK, Json(list)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
 pub async fn rename(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
 	Json(request): Json<ListState>,
 ) -> impl IntoResponse {
-	match storage.update_list(account_id, list_id, request).await {
+	let access = require.list();
+
+	match storage
+		.update_list(access.account_id, access.list_id, request)
+		.await
+	{
 		Ok(list) => (StatusCode::OK, Json(list)).into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
 pub async fn delete(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
 ) -> impl IntoResponse {
-	match storage.delete_list(account_id, list_id).await {
+	let access = require.list();
+
+	match storage.delete_list(access.account_id, access.list_id).await {
 		Ok(_) => StatusCode::NO_CONTENT.into_response(),
 		Err(error) => decode_storage_error(error).into_response(),
 	}
 }
 
-pub async fn share(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
-	State(storage): State<Arc<dyn Storage>>,
-	Path(list_id): Path<Uuid>,
-) -> impl IntoResponse {
-	match storage.create_invitation(account_id, list_id).await {
+pub async fn share(require: Require, State(storage): State<Arc<dyn Storage>>) -> impl IntoResponse {
+	let access = require.list();
+
+	match storage
+		.create_invitation(access.account_id, access.list_id)
+		.await
+	{
 		Ok(invitation_id) => (StatusCode::OK, Json(invitation_id)).into_response(),
 		Err(error) => decode_auth_error(error).into_response(),
 	}

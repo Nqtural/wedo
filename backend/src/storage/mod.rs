@@ -1,6 +1,9 @@
-use crate::types::{
-	Account, Credentials, JoinResult, List, ListOverview, ListState, Tag, TagState, Task,
-	TaskOverview, TaskState,
+use crate::{
+	permissions::ListRole,
+	types::{
+		Account, Credentials, JoinResult, List, ListOverview, ListState, Tag, TagState, Task,
+		TaskOverview, TaskState,
+	},
 };
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -139,4 +142,11 @@ pub trait Storage: Send + Sync + 'static {
 		task_id: Uuid,
 	) -> Result<(), StorageError>;
 	async fn delete_tag(&self, account_id: Uuid, tag_id: Uuid) -> Result<(), StorageError>;
+
+	// authorization
+	async fn get_list_role(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+	) -> Result<Option<ListRole>, StorageError>;
 }

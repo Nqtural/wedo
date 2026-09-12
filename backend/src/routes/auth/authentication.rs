@@ -1,5 +1,5 @@
 use crate::{
-	authorization::AuthenticatedUser,
+	authorization::Require,
 	storage::{AuthError, Storage, StorageError},
 	types::Credentials,
 };
@@ -17,9 +17,11 @@ pub async fn login(
 }
 
 pub async fn logout(
-	AuthenticatedUser { account_id }: AuthenticatedUser,
+	require: Require,
 	State(storage): State<Arc<dyn Storage>>,
 ) -> impl IntoResponse {
+	let account_id = require.account_id();
+
 	match storage.delete_session(account_id).await {
 		Ok(()) => StatusCode::NO_CONTENT.into_response(),
 		Err(error) => decode_storage_error(error).into_response(),

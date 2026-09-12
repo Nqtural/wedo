@@ -5,6 +5,7 @@ use rand::RngExt;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use uuid::Uuid;
 
+use crate::permissions::ListRole;
 use crate::storage::{AuthError, Storage, StorageError};
 use crate::types::{
 	Account, Credentials, JoinResult, List, ListOverview, ListState, Tag, TagState, Task,
@@ -1024,6 +1025,33 @@ impl Storage for SqliteStorage {
 		}
 
 		Ok(())
+	}
+
+	async fn get_list_role(
+		&self,
+		account_id: Uuid,
+		list_id: Uuid,
+	) -> Result<Option<ListRole>, StorageError> {
+		let account_id_string = account_id.to_string();
+		let list_id_string = list_id.to_string();
+
+		let record = sqlx::query!(
+			r#"
+			SELECT role AS "role: ListRole"
+			FROM list_membership
+			WHERE (user_id, list_id) = (?, ?)
+			"#,
+			account_id_string,
+			list_id_string,
+		)
+		.fetch_optional(&self.pool)
+		.await
+		.map_err(StorageError::Database)?;
+
+		match record {
+			Some(record) => Ok(Some(record.role)),
+			None => Ok(None),
+		}
 	}
 }
 

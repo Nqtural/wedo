@@ -1,5 +1,3 @@
-use crate::storage::AuthError;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "TEXT")]
 #[sqlx(rename_all = "UPPERCASE")]
