@@ -9,6 +9,7 @@ import Button from "../components/Button.vue";
 import Checkbox from "../components/Checkbox.vue";
 import EditTask from "../components/EditTask.vue";
 import Header from "../components/Header.vue";
+import Input from "../components/Input.vue";
 import ListPage from "../components/ListPage.vue";
 import ListItem from "../components/ListItem.vue";
 import ListItemActions from "../components/ListItemActions.vue";
@@ -35,19 +36,62 @@ interface Task {
 	tags: Tag[];
 }
 
+interface Filter {
+	active: boolean;
+	tags: Tag[];
+	search: string;
+}
+
 const taskList = ref<Task[]>([]);
 const listName = ref<string>("");
 const expandedTaskId = ref<string | null>(null);
+const tags = ref<Tag[]>();
+const filter = ref<Filter>({
+	active: false,
+	tags: [],
+	search: "",
+});
+
+const filteredTasks = computed(() => {
+	let tasks = taskList.value;
+
+	if (!filter.value.active) {
+		return tasks;
+	}
+
+	if (filter.value.tags.length > 0) {
+		tasks = tasks.filter((task) =>
+			task.tags.some((tag) =>
+				filter.value.tags.some(
+					(filteredTag) => filteredTag.id === tag.id,
+				),
+			),
+		);
+	}
+
+	if (filter.value.search) {
+		const search = filter.value.search.toLowerCase();
+
+		tasks = tasks.filter((task) =>
+			task.name.toLowerCase().includes(search),
+		);
+	}
+
+	return tasks;
+});
 
 async function getTasks() {
 	taskList.value = await apiFetch<Task[]>(`/lists/${listId}/tasks`);
 	if (expandedTaskId.value) {
-		const task = taskList.value.find(task => task.id === expandedTaskId.value)
+		const task = taskList.value.find(
+			(task) => task.id === expandedTaskId.value,
+		);
 
 		if (task) {
 			task.description = await getTaskDescription(expandedTaskId.value);
 		}
 	}
+	tags.value = await apiFetch<Tag[]>(`/lists/${listId}/tags`);
 }
 
 async function getTaskDescription(taskId: string) {
@@ -72,10 +116,13 @@ onMounted(async () => {
 
 async function toggleCompleted(task: Task) {
 	task.completed = (
-		await apiFetch<{ completed: boolean }>(`/lists/${listId}/tasks/${task.id}/completed`, {
-			method: "PUT",
-			body: JSON.stringify({ completed: task.completed }),
-		})
+		await apiFetch<{ completed: boolean }>(
+			`/lists/${listId}/tasks/${task.id}/completed`,
+			{
+				method: "PUT",
+				body: JSON.stringify({ completed: task.completed }),
+			},
+		)
 	).completed;
 }
 
@@ -149,6 +196,21 @@ async function toggleExpandTask(task: Task) {
 
 	expandedTaskId.value = task.id;
 }
+
+function filterTagApplied(tagId: string) {
+	return filter.value.tags.some((filteredTag) => filteredTag.id === tagId);
+}
+
+function filterToggleTag(tag: Tag) {
+	if (filterTagApplied(tag.id)) {
+		filter.value.tags = filter.value.tags.filter(
+			(filteredTag) => filteredTag.id !== tag.id,
+		);
+		return;
+	}
+
+	filter.value.tags.push(tag);
+}
 </script>
 
 <template>
@@ -157,9 +219,29 @@ async function toggleExpandTask(task: Task) {
 			<Button variant="primary" :to="{ name: 'Lists' }">Back</Button>
 		</template>
 
+		<template #filter-button>
+			<Button @click="filter.active = !filter.active" variant="primary">
+				{{ filter.active ? "Stop filtering" : "Show filter" }}
+			</Button>
+		</template>
+
+		<template #filter v-if="filter.active">
+			<Input v-model="filter.search" placeholder="Search tasks..." />
+			<div class="tags-expanded">
+				<TagPill
+					v-for="tag in tags"
+					:key="tag.id"
+					:name="tag.state.name"
+					:color="tagColor(tag.state.color_key)"
+					:applied="filterTagApplied(tag.id)"
+					@click="filterToggleTag(tag)"
+				/>
+			</div>
+		</template>
+
 		<ListItem
 			@click.stop="toggleExpandTask(task)"
-			v-for="task in taskList"
+			v-for="task in filteredTasks"
 			:key="task.id"
 			:expanded="task.id === expandedTaskId"
 		>
@@ -190,6 +272,7 @@ async function toggleExpandTask(task: Task) {
 				<div v-if="task.id !== expandedTaskId" class="tags">
 					<span
 						v-for="tag in task.tags"
+						:key="tag.id"
 						:style="tagColor(tag.state.color_key)"
 					></span>
 				</div>

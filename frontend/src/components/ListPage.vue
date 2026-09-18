@@ -44,8 +44,16 @@ onBeforeUnmount(() => {
 
 	<div class="list-page">
 		<div class="header">
-			<slot name="back" />
-			<h2>{{ title }}</h2>
+			<div class="header__main">
+				<slot name="back" />
+				<h2>{{ title }}</h2>
+				<slot name="filter-button" />
+			</div>
+			<Transition name="grow-vertical">
+				<div v-if="$slots.filter" class="filter">
+					<slot name="filter" />
+				</div>
+			</Transition>
 		</div>
 		<hr />
 		<div
@@ -64,6 +72,23 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.grow-vertical-enter-active,
+.grow-vertical-leave-active {
+	transition:
+		max-height var(--transition-slow),
+		margin-top var(--transition-slow);
+}
+
+.grow-vertical-enter-from,
+.grow-vertical-leave-to {
+	max-height: 0;
+}
+
+.grow-vertical-enter-to,
+.grow-vertical-leave-from {
+	max-height: 15em;
+}
+
 .list-page {
 	display: flex;
 	flex-direction: column;
@@ -81,15 +106,35 @@ onBeforeUnmount(() => {
 }
 
 .header {
-	display: flex;
-	gap: 20px;
 	width: 100%;
+
+	& .header__main {
+		display: flex;
+		gap: 20px;
+	}
 }
 
 h2 {
 	display: inline-block;
 	float: left;
 	margin: 0;
+	margin-right: auto;
+}
+
+.filter {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	width: 100%;
+	overflow: hidden;
+
+	&::before {
+		/* hacky solution to animate space
+		between main header and filter */
+		content: "";
+		display: block;
+		flex: 0 0 20px;
+	}
 }
 
 hr {
@@ -97,7 +142,8 @@ hr {
 	background: var(--color-text);
 	width: 100%;
 	border: none;
-	margin: 0px;
+	margin: 0;
+	flex-shrink: 0;
 }
 
 .list-wrapper {
