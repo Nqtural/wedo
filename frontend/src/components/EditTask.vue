@@ -133,10 +133,7 @@ function manageTags() {
 		<textarea v-model="editor.form.description"></textarea>
 
 		<label>
-			<Checkbox
-				class="checkbox"
-				v-model="editor.form.completed"
-			/>
+			<Checkbox class="checkbox" v-model="editor.form.completed" />
 			Completed
 		</label>
 
